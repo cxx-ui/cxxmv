@@ -14,6 +14,7 @@
 #include "projection.hpp"
 #include "signals.hpp"
 #include <array>
+#include <memory>
 #include <tuple>
 
 
@@ -29,15 +30,25 @@ class zip_transform_projection: public projection_base {
     /// Type of array of connections to base observables
     using observables_connections = std::array<scoped_signal_connection, sizeof...(Observables)>;
 
+    /// Shared state for all zip transform projection copies, contains changed signal
+    /// and connection to all base observables
+    struct shared_state_t {
+        signal<void ()> changed;        ///< Changed signal
+        observables_connections con;    ///< Array of connections to base observables
+    };
+
 public:
     /// Constructs transform projection from zip function and observables
     zip_transform_projection(GetFn gf, Observables ... bases):
     bases_{std::move(bases)...},
-    get_fn_{std::move(gf)} {
-        // connecting to changes signals of all base observables
-        std::apply([this](Observables & ... bases) {
+    get_fn_{std::move(gf)},
+    state_{std::make_shared<shared_state_t>()},
+    changed{state_->changed} {
+        // connecting to changes signals of all base observables. Slots capture raw pointer
+        // to state because connections are owned by state and can't outlive it.
+        std::apply([state = state_.get()](Observables & ... bases) {
             std::size_t idx = 0;
-            ((con_[idx++] = bases.changed.connect([this] { changed(); })), ...);
+            ((state->con[idx++] = bases.changed.connect([state] { state->changed(); })), ...);
         }, bases_);
     }
 
@@ -53,13 +64,14 @@ public:
         return get();
     }
 
-    /// The changed signal is emitted after one of zipped observables is changed
-    signal<void ()> changed;
-
 private:
-    observables_tuple bases_;           ///< Tuple of base observables
-    GetFn get_fn_;                      ///< Get function
-    observables_connections con_;       ///< Array of connections to base observables
+    observables_tuple bases_;                   ///< Tuple of base observables
+    GetFn get_fn_;                              ///< Get function
+    std::shared_ptr<shared_state_t> state_;     ///< State shared by all copies
+
+public:
+    /// The changed signal is emitted after model is changed
+    signal_ref<signal<void ()>> changed;
 };
 
 

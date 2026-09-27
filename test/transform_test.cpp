@@ -11,6 +11,7 @@
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/basic_model.hpp>
 #include <cxxmv/transform.hpp>
+#include <type_traits>
 
 
 BOOST_AUTO_TEST_SUITE(transform_test)
@@ -22,6 +23,12 @@ BOOST_AUTO_TEST_CASE(transform_int_float) {
     auto get_fn = [](int x) { return static_cast<float>(x); };
     auto set_fn = [](int & x, float y) { x = static_cast<int>(y); };
     auto mdl2 = mdl | mv::transform(get_fn, set_fn);
+
+    using transform_t = std::decay_t<decltype(mdl2)>;
+
+    static_assert(mv::projectable_observable_as<transform_t, float>);
+    static_assert(std::move_constructible<transform_t>);
+    static_assert(std::copy_constructible<transform_t>);
 
     bool changed_called = false;
     mdl2.changed.connect([&changed_called, &mdl, &mdl2] {

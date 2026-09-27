@@ -30,6 +30,12 @@ public:
         base_{b}, get_fn_{std::move(gf)}, set_fn_{std::move(sf)},
         changed{b.changed} {}
 
+    /// Copy constructor
+    transform_projection(const transform_projection &) = default;
+
+    /// Move constructor
+    transform_projection(transform_projection &&) = default;
+
     /// Returns transformed value
     decltype(auto) get() const {
         return get_fn_(base_.get());

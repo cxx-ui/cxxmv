@@ -7,8 +7,10 @@
 /// \file zip_transform_test.cpp
 /// Contains unit tests for the zip_transform projection.
 
+#include "cxxmv/observable.hpp"
 #include "test_user.hpp"
 #include <boost/test/unit_test.hpp>
+#include <concepts>
 #include <cxxmv/all.hpp>
 #include <cxxmv/basic_model.hpp>
 #include <cxxmv/zip_transform.hpp>
@@ -24,6 +26,12 @@ BOOST_AUTO_TEST_CASE(zip_transform_int_float) {
 
     auto get_fn = [](int x, float y) { return static_cast<float>(x) + y; };
     auto zip = mv::zip_transform(get_fn, mdl1, mdl2);
+
+    using zip_t = std::decay_t<decltype(zip)>;
+
+    static_assert(mv::projectable_observable_as<zip_t, float>);
+    static_assert(std::copy_constructible<zip_t>);
+    static_assert(std::move_constructible<zip_t>);
 
     BOOST_CHECK_EQUAL(zip.get(), 100.5f);
     BOOST_CHECK_EQUAL(*zip, 100.5f);

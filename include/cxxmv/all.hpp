@@ -43,6 +43,9 @@ public:
     ref_projection(Base & b):
         base_{b}, changed{b.changed} {}
 
+    /// Copy constructor
+    ref_projection(const ref_projection & other) = default;
+
     /// Reads value from observable
     decltype(auto) get() const {
         return base_.get();
