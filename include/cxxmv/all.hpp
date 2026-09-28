@@ -12,25 +12,10 @@
 #include "adaptor.hpp"
 #include "assign_wrapper.hpp"
 #include "projection.hpp"
+#include "signal_ref.hpp"
 
 
 namespace mv {
-
-
-template <typename Base, typename ... Args>
-requires Signal<Base, Args...>
-class signal_ref {
-public:
-    signal_ref(Base & b): base_{b} {}
-
-    template <typename F>
-    signal_connection connect(const F & f) const {
-        return base_.connect(f);
-    }
-
-private:
-    Base & base_;
-};
 
 
 template <typename Base>

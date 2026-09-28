@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <QFormLayout>
+#include <iostream>
 
 
 /// Represents contact person with first and last name

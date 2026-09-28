@@ -12,6 +12,7 @@
 #include "all.hpp"
 #include "observable.hpp"
 #include "projection.hpp"
+#include "signal_ref.hpp"
 #include "signals.hpp"
 #include <array>
 #include <memory>

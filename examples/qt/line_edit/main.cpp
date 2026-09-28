@@ -16,7 +16,6 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <iostream>
-#include <sstream>
 
 
 /// Represents contact person with first and last name

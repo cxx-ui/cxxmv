@@ -12,7 +12,6 @@
 #include "../projection.hpp"
 #include "../all.hpp"
 #include <QLineEdit>
-#include <iostream>
 
 
 namespace mv::qt {
