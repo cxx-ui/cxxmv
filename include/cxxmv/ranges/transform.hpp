@@ -196,6 +196,21 @@ public:
         before_changed{base_.before_changed, get_fn_.get()},
         after_changed{base_.after_changed, get_fn_.get()} {}
 
+    /// Copy constructor
+    transform_projection(const transform_projection &) = default;
+
+    /// Move constructor
+    transform_projection(transform_projection && other):
+        base_{std::move(other.base_)},
+        get_fn_{std::move(other.get_fn_)},
+        set_fn_{std::move(other.set_fn_)},
+        before_inserted{base_.before_inserted, get_fn_.get()},
+        after_inserted{base_.after_inserted, get_fn_.get()},
+        before_erased{base_.before_erased, get_fn_.get()},
+        after_erased{base_.after_erased, get_fn_.get()},
+        before_changed{base_.before_changed, get_fn_.get()},
+        after_changed{base_.after_changed, get_fn_.get()} {}
+
     /// Returns const iterator pointing to the first transformed element
     const_iterator begin() const { return {std::ranges::begin(base_), get_fn_.get()}; }
 

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "adaptor.hpp"
+#include "owning_projection.hpp"
 #include "projection.hpp"
 #include "ref_projection.hpp"
 #include <type_traits>
@@ -23,6 +24,8 @@ inline constexpr auto all = adaptor_closure {
     []<projectable_observable Range>(Range && r) {
         if constexpr (observable_projection<std::decay_t<Range>>) {
             return std::forward<Range>(r);
+        } else if constexpr (requires { owning_projection{std::forward<Range>(r)}; }) {
+            return owning_projection{std::forward<Range>(r)};
         } else {
             return ref_projection{std::forward<Range>(r)};
         }
