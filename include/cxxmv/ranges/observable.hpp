@@ -20,22 +20,20 @@ namespace mv::ranges {
 /// Observable range concept
 template <typename Range>
 concept observable = std::ranges::random_access_range<Range> && requires(const Range & obj) {
-    { obj.before_inserted } -> Signal<std::ranges::iterator_t<Range>, size_t>;
-    { obj.after_inserted } -> Signal<std::ranges::iterator_t<Range>, size_t>;
-    { obj.before_erased } -> Signal<std::ranges::iterator_t<Range>, size_t>;
-    { obj.after_erased } -> Signal<std::ranges::iterator_t<Range>, size_t>;
-    { obj.before_changed } -> Signal<std::ranges::iterator_t<Range>>;
-    { obj.after_changed } -> Signal<std::ranges::iterator_t<Range>>;
+    { obj.before_inserted } -> Signal<size_t, size_t>;
+    { obj.after_inserted } -> Signal<size_t, size_t>;
+    { obj.before_erased } -> Signal<size_t, size_t>;
+    { obj.after_erased } -> Signal<size_t, size_t>;
+    { obj.before_changed } -> Signal<size_t>;
+    { obj.after_changed } -> Signal<size_t>;
 };
 
 
 /// Observable range with support for move operations
 template <typename Range>
 concept observable_with_move = observable<Range> && requires(const Range & obj) {
-    { obj.before_moved } ->
-        Signal <std::ranges::iterator_t<Range>, size_t, std::ranges::iterator_t<Range>>;
-    { obj.after_moved } ->
-        Signal <std::ranges::iterator_t<Range>, size_t, std::ranges::iterator_t<Range>>;
+    { obj.before_moved } -> Signal<size_t, size_t, size_t>;
+    { obj.after_moved } -> Signal<size_t, size_t, size_t>;
 };
 
 

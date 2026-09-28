@@ -99,14 +99,11 @@ class transform_move_signals {};
 template <observable_with_move Range, typename GetFn>
 class transform_move_signals<Range, GetFn> {
 public:
-    /// Type of const iterator over transformed elements
-    using const_iterator = transform_const_iterator<Range, GetFn>;
-
     /// The signal is emitted before items moved
-    mutable signal<void (const_iterator, size_t, const_iterator)> before_moved;
+    mutable signal<void (size_t, size_t, size_t)> before_moved;
 
     /// The signal is emitted after items moved
-    mutable signal<void (const_iterator, size_t, const_iterator)> after_moved;
+    mutable signal<void (size_t, size_t, size_t)> after_moved;
 
 protected:
     scoped_signal_connection before_moved_con_;         ///< Connection to base before_moved
@@ -275,63 +272,59 @@ public:
     auto size() const { return std::ranges::size(base_); }
 
     /// The signal is emitted before items added
-    mutable signal<void (const_iterator, size_t)> before_inserted;
+    mutable signal<void (size_t, size_t)> before_inserted;
 
     /// The signal is emitted after items added
-    mutable signal<void (const_iterator, size_t)> after_inserted;
+    mutable signal<void (size_t, size_t)> after_inserted;
 
     /// The signal is emitted before items removed
-    mutable signal<void (const_iterator, size_t)> before_erased;
+    mutable signal<void (size_t, size_t)> before_erased;
 
     /// The signal is emitted after items removed
-    mutable signal<void (const_iterator, size_t)> after_erased;
+    mutable signal<void (size_t, size_t)> after_erased;
 
     /// The signal is emitted before item is changed
-    mutable signal<void (const_iterator)> before_changed;
+    mutable signal<void (size_t)> before_changed;
 
     /// The signal is emitted after item is changed
-    mutable signal<void (const_iterator)> after_changed;
+    mutable signal<void (size_t)> after_changed;
 
 private:
     /// Connects to signals of base range to emit signals of this projection
     void connect_base() {
-        before_inserted_con_ = base_.before_inserted.connect([this](auto && pos, size_t count) {
-            before_inserted(const_iterator{pos, &get_fn_}, count);
+        before_inserted_con_ = base_.before_inserted.connect([this](size_t idx, size_t count) {
+            before_inserted(idx, count);
         });
 
-        after_inserted_con_ = base_.after_inserted.connect([this](auto && pos, size_t count) {
-            after_inserted(const_iterator{pos, &get_fn_}, count);
+        after_inserted_con_ = base_.after_inserted.connect([this](size_t idx, size_t count) {
+            after_inserted(idx, count);
         });
 
-        before_erased_con_ = base_.before_erased.connect([this](auto && pos, size_t count) {
-            before_erased(const_iterator{pos, &get_fn_}, count);
+        before_erased_con_ = base_.before_erased.connect([this](size_t idx, size_t count) {
+            before_erased(idx, count);
         });
 
-        after_erased_con_ = base_.after_erased.connect([this](auto && pos, size_t count) {
-            after_erased(const_iterator{pos, &get_fn_}, count);
+        after_erased_con_ = base_.after_erased.connect([this](size_t idx, size_t count) {
+            after_erased(idx, count);
         });
 
-        before_changed_con_ = base_.before_changed.connect([this](auto && pos) {
-            before_changed(const_iterator{pos, &get_fn_});
+        before_changed_con_ = base_.before_changed.connect([this](size_t idx) {
+            before_changed(idx);
         });
 
-        after_changed_con_ = base_.after_changed.connect([this](auto && pos) {
-            after_changed(const_iterator{pos, &get_fn_});
+        after_changed_con_ = base_.after_changed.connect([this](size_t idx) {
+            after_changed(idx);
         });
 
         if constexpr (observable_with_move<Range>) {
             this->before_moved_con_ = base_.before_moved.connect(
-                [this](auto && first, size_t count, auto && dest) {
-                    this->before_moved(const_iterator{first, &get_fn_},
-                                       count,
-                                       const_iterator{dest, &get_fn_});
+                [this](size_t first_idx, size_t count, size_t dest_idx) {
+                    this->before_moved(first_idx, count, dest_idx);
                 });
 
             this->after_moved_con_ = base_.after_moved.connect(
-                [this](auto && first, size_t count, auto && dest) {
-                    this->after_moved(const_iterator{first, &get_fn_},
-                                      count,
-                                      const_iterator{dest, &get_fn_});
+                [this](size_t first_idx, size_t count, size_t dest_idx) {
+                    this->after_moved(first_idx, count, dest_idx);
                 });
         }
     }

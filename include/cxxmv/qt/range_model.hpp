@@ -30,45 +30,46 @@ public:
     range_model(Range rng, QObject * parent = nullptr):
     QAbstractItemModel{parent},
     rng_{std::move(rng)} {
-        before_inserted_con_ = rng_.before_inserted.connect([this](auto pos, std::size_t count) {
+        before_inserted_con_ = rng_.before_inserted.connect([this](size_t idx, size_t count) {
             assert(count > 0 && "inserted count should not be 0");
-            int row = get_row(pos);
+            int row = static_cast<int>(idx);
             beginInsertRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
         });
 
-        after_inserted_con_ = rng_.after_inserted.connect([this](auto, std::size_t count) {
+        after_inserted_con_ = rng_.after_inserted.connect([this](size_t, size_t count) {
             assert(count > 0 && "inserted count should not be 0");
             endInsertRows();
         });
 
-        before_erased_con_ = rng_.before_erased.connect([this](auto pos, std::size_t count) {
+        before_erased_con_ = rng_.before_erased.connect([this](size_t idx, size_t count) {
             assert(count > 0 && "erased count should not be 0");
-            int row = get_row(pos);
+            int row = static_cast<int>(idx);
             beginRemoveRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
         });
 
-        after_erased_con_ = rng_.after_erased.connect([this](auto, std::size_t count) {
+        after_erased_con_ = rng_.after_erased.connect([this](size_t, size_t count) {
             assert(count > 0 && "erased count should not be 0");
             endRemoveRows();
         });
 
-        after_changed_con_ = rng_.after_changed.connect([this](auto pos) {
-            int row = get_row(pos);
+        after_changed_con_ = rng_.after_changed.connect([this](size_t idx) {
+            int row = static_cast<int>(idx);
             emit dataChanged(index(row, 0), index(row, columnCount() - 1));
         });
 
         if constexpr (ranges::observable_with_move<Range>) {
             before_moved_con_ = rng_.before_moved.connect(
-            [this](auto first, std::size_t count, auto dest) {
+            [this](size_t first_idx, size_t count, size_t dest_idx) {
                 assert(count > 0 && "moved count should not be 0");
-                int row = get_row(first);
+                int row = static_cast<int>(first_idx);
                 [[maybe_unused]] bool res = beginMoveRows(QModelIndex{}, row,
                                                           row + static_cast<int>(count) - 1,
-                                                          QModelIndex{}, get_row(dest));
+                                                          QModelIndex{},
+                                                          static_cast<int>(dest_idx));
                 assert(res && "invalid move");
             });
 
-            after_moved_con_ = rng_.after_moved.connect([this](auto, std::size_t count, auto) {
+            after_moved_con_ = rng_.after_moved.connect([this](size_t, size_t count, size_t) {
                 assert(count > 0 && "moved count should not be 0");
                 endMoveRows();
             });
@@ -105,12 +106,6 @@ protected:
     Range & range() { return rng_; }
 
 private:
-    /// Returns row number for specified range iterator
-    template <typename It>
-    int get_row(const It & pos) const {
-        return static_cast<int>(pos - std::ranges::begin(rng_));
-    }
-
     Range rng_;                                         ///< Range
     scoped_signal_connection before_inserted_con_;      ///< Connection to before_inserted signal
     scoped_signal_connection after_inserted_con_;       ///< Connection to after_inserted signal

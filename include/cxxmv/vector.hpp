@@ -134,25 +134,25 @@ public:
 
         auto idx = std::distance(storage_.cbegin(), pos);
         auto sz = std::distance(first, last);
-        before_inserted(pos, sz);
+        before_inserted(idx, sz);
         storage_.insert(pos, first, last);
-        after_inserted(begin() + idx, sz);
+        after_inserted(idx, sz);
     }
 
     /// Inserts element at specified position
     void insert(const const_iterator & pos, const T & val) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(pos, 1);
+        before_inserted(idx, 1);
         storage_.insert(pos, val);
-        after_inserted(begin() + idx, 1);
+        after_inserted(idx, 1);
     }
 
     /// Inserts element to specified position with move
     void insert(const const_iterator & pos, T && val) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(pos, 1);
+        before_inserted(idx, 1);
         storage_.insert(pos, std::move(val));
-        after_inserted(begin() + idx, 1);
+        after_inserted(idx, 1);
     }
 
     /// Inserts element at the end of vector
@@ -169,9 +169,9 @@ public:
     template <typename ... Args>
     const_iterator emplace(const const_iterator & pos, Args && ... args) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(pos, 1);
+        before_inserted(idx, 1);
         auto res = storage_.emplace(pos, std::forward<Args>(args)...);
-        after_inserted(begin() + idx, 1);
+        after_inserted(idx, 1);
         return res;
     }
 
@@ -189,9 +189,9 @@ public:
 
         auto idx = std::distance(storage_.cbegin(), first);
         auto sz = std::distance(first, last);
-        before_erased(begin() + idx, sz);
+        before_erased(idx, sz);
         storage_.erase(first, last);
-        after_erased(begin() + idx, sz);
+        after_erased(idx, sz);
     }
 
     /// Erases all elements
@@ -216,7 +216,7 @@ public:
         auto dest_idx = std::distance(storage_.cbegin(), dest);
         auto sz = last_idx - first_idx;
 
-        before_moved(cbegin() + first_idx, sz, cbegin() + dest_idx);
+        before_moved(first_idx, sz, dest_idx);
 
         auto storage_first = storage_.begin() + first_idx;
         auto storage_last = storage_.begin() + last_idx;
@@ -228,7 +228,7 @@ public:
             std::rotate(storage_first, storage_last, storage_dest);
         }
 
-        after_moved(cbegin() + first_idx, sz, cbegin() + dest_idx);
+        after_moved(first_idx, sz, dest_idx);
     }
 
     /// Returns const reference to element
@@ -253,44 +253,44 @@ public:
 
 
     /// The signal is emitted before items added
-    mutable signal<void (const_iterator, size_t)> before_inserted;
+    mutable signal<void (size_t, size_t)> before_inserted;
 
     /// The signal is emitted after items added
-    mutable signal<void (const_iterator, size_t)> after_inserted;
+    mutable signal<void (size_t, size_t)> after_inserted;
 
     /// The signal is emitted before items removed
-    mutable signal<void (const_iterator, size_t)> before_erased;
+    mutable signal<void (size_t, size_t)> before_erased;
 
     /// The signal is emitted after items removed
-    mutable signal<void (const_iterator, size_t)> after_erased;
+    mutable signal<void (size_t, size_t)> after_erased;
 
     /// The signal is emitted after item is changed
-    mutable signal<void (const_iterator)> before_changed;
+    mutable signal<void (size_t)> before_changed;
 
     /// The signal is after after item is changed
-    mutable signal<void (const_iterator)> after_changed;
+    mutable signal<void (size_t)> after_changed;
 
     /// The signal is emitted before items moved
-    mutable signal<void (const_iterator, size_t, const_iterator)> before_moved;
+    mutable signal<void (size_t, size_t, size_t)> before_moved;
 
     /// The signal is emitted after items moved
-    mutable signal<void (const_iterator, size_t, const_iterator)> after_moved;
+    mutable signal<void (size_t, size_t, size_t)> after_moved;
 
 private:
     /// Assigns value to element
     void set(const const_iterator & cit, const T & val) {
-        auto it = storage_.begin() + std::distance(storage_.cbegin(), cit);
-        before_changed(cit);
-        *it = val;
-        after_changed(cit);
+        auto idx = std::distance(storage_.cbegin(), cit);
+        before_changed(idx);
+        storage_[idx] = val;
+        after_changed(idx);
     }
 
     /// Assigns value to element with move
     void set(const const_iterator & cit, T && val) {
-        auto it = storage_.begin() + std::distance(storage_.cbegin(), cit);
-        before_changed(cit);
-        *it = std::move(val);
-        after_changed(cit);
+        auto idx = std::distance(storage_.cbegin(), cit);
+        before_changed(idx);
+        storage_[idx] = std::move(val);
+        after_changed(idx);
     }
 
     std::vector<T> storage_;

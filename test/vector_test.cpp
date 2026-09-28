@@ -64,13 +64,13 @@ BOOST_AUTO_TEST_CASE(insert_single) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto pos, size_t count) {
+    vec.before_inserted.connect([&](size_t idx, size_t count) {
         ++before_inserted_count;
         BOOST_CHECK_EQUAL(after_inserted_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 1);
 
         // vector is not modified yet
@@ -78,22 +78,22 @@ BOOST_AUTO_TEST_CASE(insert_single) {
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.after_inserted.connect([&](auto pos, size_t count) {
+    vec.after_inserted.connect([&](size_t idx, size_t count) {
         ++after_inserted_count;
         BOOST_CHECK_EQUAL(before_inserted_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 1);
-        BOOST_CHECK_EQUAL(*pos, 10);
+        BOOST_CHECK_EQUAL(vec[idx], 10);
 
         // vector is already modified
         std::vector<int> expected{1, 10, 2, 3};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.insert(vec.begin() + 1, 10);
 
@@ -124,13 +124,13 @@ BOOST_AUTO_TEST_CASE(insert_range) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto pos, size_t count) {
+    vec.before_inserted.connect([&](size_t idx, size_t count) {
         ++before_inserted_count;
         BOOST_CHECK_EQUAL(after_inserted_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 3);
 
         // vector is not modified yet
@@ -138,25 +138,26 @@ BOOST_AUTO_TEST_CASE(insert_range) {
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.after_inserted.connect([&](auto pos, size_t count) {
+    vec.after_inserted.connect([&](size_t idx, size_t count) {
         ++after_inserted_count;
         BOOST_CHECK_EQUAL(before_inserted_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 3);
 
-        // pos points to the first of inserted elements
+        // idx is the index of the first inserted element
         std::vector<int> inserted{10, 20, 30};
-        BOOST_CHECK_EQUAL_COLLECTIONS(pos, pos + count, inserted.begin(), inserted.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin() + idx, vec.cbegin() + idx + count,
+                                      inserted.begin(), inserted.end());
 
         // vector is already modified
         std::vector<int> expected{1, 10, 20, 30, 2, 3};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     std::vector<int> vals{10, 20, 30};
     vec.insert(vec.begin() + 1, vals.begin(), vals.end());
@@ -188,13 +189,13 @@ BOOST_AUTO_TEST_CASE(push_back) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto pos, size_t count) {
+    vec.before_inserted.connect([&](size_t idx, size_t count) {
         ++before_inserted_count;
         BOOST_CHECK_EQUAL(after_inserted_count, 0);
-        BOOST_CHECK(pos == vec.cend());
+        BOOST_CHECK_EQUAL(idx, 3);
         BOOST_CHECK_EQUAL(count, 1);
 
         // vector is not modified yet
@@ -202,22 +203,22 @@ BOOST_AUTO_TEST_CASE(push_back) {
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.after_inserted.connect([&](auto pos, size_t count) {
+    vec.after_inserted.connect([&](size_t idx, size_t count) {
         ++after_inserted_count;
         BOOST_CHECK_EQUAL(before_inserted_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 3);
+        BOOST_CHECK_EQUAL(idx, 3);
         BOOST_CHECK_EQUAL(count, 1);
-        BOOST_CHECK_EQUAL(*pos, 10);
+        BOOST_CHECK_EQUAL(vec[idx], 10);
 
         // vector is already modified
         std::vector<int> expected{1, 2, 3, 10};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.push_back(10);
 
@@ -248,35 +249,35 @@ BOOST_AUTO_TEST_CASE(emplace) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto pos, size_t count) {
+    vec.before_inserted.connect([&](size_t idx, size_t count) {
         ++before_inserted_count;
         BOOST_CHECK_EQUAL(after_inserted_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 1);
 
         // vector is not modified yet
         BOOST_CHECK_EQUAL(vec.size(), 2);
     });
 
-    vec.after_inserted.connect([&](auto pos, size_t count) {
+    vec.after_inserted.connect([&](size_t idx, size_t count) {
         ++after_inserted_count;
         BOOST_CHECK_EQUAL(before_inserted_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 1);
-        BOOST_CHECK_EQUAL(pos->first_name(), "Bob");
-        BOOST_CHECK_EQUAL(pos->last_name(), "Brown");
+        BOOST_CHECK_EQUAL(vec[idx].first_name(), "Bob");
+        BOOST_CHECK_EQUAL(vec[idx].last_name(), "Brown");
 
         // vector is already modified
         BOOST_CHECK_EQUAL(vec.size(), 3);
     });
 
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     auto it = vec.emplace(vec.begin() + 1, "Bob", "Brown");
 
@@ -314,35 +315,35 @@ BOOST_AUTO_TEST_CASE(emplace_back) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto pos, size_t count) {
+    vec.before_inserted.connect([&](size_t idx, size_t count) {
         ++before_inserted_count;
         BOOST_CHECK_EQUAL(after_inserted_count, 0);
-        BOOST_CHECK(pos == vec.cend());
+        BOOST_CHECK_EQUAL(idx, 2);
         BOOST_CHECK_EQUAL(count, 1);
 
         // vector is not modified yet
         BOOST_CHECK_EQUAL(vec.size(), 2);
     });
 
-    vec.after_inserted.connect([&](auto pos, size_t count) {
+    vec.after_inserted.connect([&](size_t idx, size_t count) {
         ++after_inserted_count;
         BOOST_CHECK_EQUAL(before_inserted_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 2);
+        BOOST_CHECK_EQUAL(idx, 2);
         BOOST_CHECK_EQUAL(count, 1);
-        BOOST_CHECK_EQUAL(pos->first_name(), "Bob");
-        BOOST_CHECK_EQUAL(pos->last_name(), "Brown");
+        BOOST_CHECK_EQUAL(vec[idx].first_name(), "Bob");
+        BOOST_CHECK_EQUAL(vec[idx].last_name(), "Brown");
 
         // vector is already modified
         BOOST_CHECK_EQUAL(vec.size(), 3);
     });
 
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     auto it = vec.emplace_back("Bob", "Brown");
 
@@ -380,42 +381,43 @@ BOOST_AUTO_TEST_CASE(erase) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_erased.connect([&](auto pos, size_t count) {
+    vec.before_erased.connect([&](size_t idx, size_t count) {
         ++before_erased_count;
         BOOST_CHECK_EQUAL(after_erased_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 2);
 
-        // pos points to the first of elements being erased
+        // idx is the index of the first element being erased
         std::vector<int> erased{2, 3};
-        BOOST_CHECK_EQUAL_COLLECTIONS(pos, pos + count, erased.begin(), erased.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin() + idx, vec.cbegin() + idx + count,
+                                      erased.begin(), erased.end());
 
         // vector is not modified yet
         std::vector<int> expected{1, 2, 3, 4, 5};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.after_erased.connect([&](auto pos, size_t count) {
+    vec.after_erased.connect([&](size_t idx, size_t count) {
         ++after_erased_count;
         BOOST_CHECK_EQUAL(before_erased_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(count, 2);
 
-        // pos points to the element following erased ones
-        BOOST_CHECK_EQUAL(*pos, 4);
+        // idx is the index of the element following erased ones
+        BOOST_CHECK_EQUAL(vec[idx], 4);
 
         // vector is already modified
         std::vector<int> expected{1, 4, 5};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.erase(vec.begin() + 1, vec.begin() + 3);
 
@@ -446,13 +448,13 @@ BOOST_AUTO_TEST_CASE(clear) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_erased.connect([&](auto pos, size_t count) {
+    vec.before_erased.connect([&](size_t idx, size_t count) {
         ++before_erased_count;
         BOOST_CHECK_EQUAL(after_erased_count, 0);
-        BOOST_CHECK(pos == vec.cbegin());
+        BOOST_CHECK_EQUAL(idx, 0);
         BOOST_CHECK_EQUAL(count, 3);
 
         // vector is not modified yet
@@ -460,20 +462,20 @@ BOOST_AUTO_TEST_CASE(clear) {
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
     });
 
-    vec.after_erased.connect([&](auto pos, size_t count) {
+    vec.after_erased.connect([&](size_t idx, size_t count) {
         ++after_erased_count;
         BOOST_CHECK_EQUAL(before_erased_count, 1);
-        BOOST_CHECK(pos == vec.cend());
+        BOOST_CHECK_EQUAL(idx, 0);
         BOOST_CHECK_EQUAL(count, 3);
 
         // vector is already empty
         BOOST_CHECK(vec.empty());
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.clear();
 
@@ -505,31 +507,31 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_changed.connect([&](auto pos) {
+    vec.before_changed.connect([&](size_t idx) {
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
 
         // element is not modified yet
-        BOOST_CHECK_EQUAL(*pos, 2);
+        BOOST_CHECK_EQUAL(vec[idx], 2);
     });
 
-    vec.after_changed.connect([&](auto pos) {
+    vec.after_changed.connect([&](size_t idx) {
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
 
         // element is already modified
-        BOOST_CHECK_EQUAL(*pos, 10);
+        BOOST_CHECK_EQUAL(vec[idx], 10);
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
 
     auto it = vec.begin() + 1;
     *it = 10;
@@ -563,31 +565,31 @@ BOOST_AUTO_TEST_CASE(at_assign) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_changed.connect([&](auto pos) {
+    vec.before_changed.connect([&](size_t idx) {
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
 
         // element is not modified yet
-        BOOST_CHECK_EQUAL(*pos, 2);
+        BOOST_CHECK_EQUAL(vec[idx], 2);
     });
 
-    vec.after_changed.connect([&](auto pos) {
+    vec.after_changed.connect([&](size_t idx) {
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), pos), 1);
+        BOOST_CHECK_EQUAL(idx, 1);
 
         // element is already modified
-        BOOST_CHECK_EQUAL(*pos, 10);
+        BOOST_CHECK_EQUAL(vec[idx], 10);
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
 
     vec.at(1) = 10;
 
@@ -622,15 +624,15 @@ BOOST_AUTO_TEST_CASE(insert_empty_range) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     std::vector<int> vals;
     vec.insert(vec.begin() + 1, vals.begin(), vals.end());
@@ -662,15 +664,15 @@ BOOST_AUTO_TEST_CASE(erase_empty_range) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.erase(vec.begin() + 1, vec.begin() + 1);
 
@@ -701,15 +703,15 @@ BOOST_AUTO_TEST_CASE(clear_empty) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.clear();
 
@@ -771,36 +773,36 @@ BOOST_AUTO_TEST_CASE(move_forward) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto first, size_t count, auto dest) {
+    vec.before_moved.connect([&](size_t first_idx, size_t count, size_t dest_idx) {
         ++before_moved_count;
         BOOST_CHECK_EQUAL(after_moved_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(first_idx, 1);
         BOOST_CHECK_EQUAL(count, 2);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 5);
+        BOOST_CHECK_EQUAL(dest_idx, 5);
 
         // vector is not modified yet
         std::vector<int> expected{1, 2, 3, 4, 5};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
     });
 
-    vec.after_moved.connect([&](auto first, size_t count, auto dest) {
+    vec.after_moved.connect([&](size_t first_idx, size_t count, size_t dest_idx) {
         ++after_moved_count;
         BOOST_CHECK_EQUAL(before_moved_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(first_idx, 1);
         BOOST_CHECK_EQUAL(count, 2);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 5);
+        BOOST_CHECK_EQUAL(dest_idx, 5);
 
         // vector is already modified
         std::vector<int> expected{1, 4, 5, 2, 3};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cend());
 
@@ -831,36 +833,36 @@ BOOST_AUTO_TEST_CASE(move_backward) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto first, size_t count, auto dest) {
+    vec.before_moved.connect([&](size_t first_idx, size_t count, size_t dest_idx) {
         ++before_moved_count;
         BOOST_CHECK_EQUAL(after_moved_count, 0);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 3);
+        BOOST_CHECK_EQUAL(first_idx, 3);
         BOOST_CHECK_EQUAL(count, 2);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 1);
+        BOOST_CHECK_EQUAL(dest_idx, 1);
 
         // vector is not modified yet
         std::vector<int> expected{1, 2, 3, 4, 5};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
     });
 
-    vec.after_moved.connect([&](auto first, size_t count, auto dest) {
+    vec.after_moved.connect([&](size_t first_idx, size_t count, size_t dest_idx) {
         ++after_moved_count;
         BOOST_CHECK_EQUAL(before_moved_count, 1);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 3);
+        BOOST_CHECK_EQUAL(first_idx, 3);
         BOOST_CHECK_EQUAL(count, 2);
-        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 1);
+        BOOST_CHECK_EQUAL(dest_idx, 1);
 
         // vector is already modified
         std::vector<int> expected{1, 4, 5, 2, 3};
         BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
     });
 
-    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
-    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
-    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
-    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
-    vec.before_changed.connect([&](auto) { ++before_changed_count; });
-    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+    vec.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](size_t, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](size_t) { ++before_changed_count; });
+    vec.after_changed.connect([&](size_t) { ++after_changed_count; });
 
     vec.move(vec.cbegin() + 3, vec.cend(), vec.cbegin() + 1);
 
@@ -885,8 +887,8 @@ BOOST_AUTO_TEST_CASE(move_noop) {
     int before_moved_count = 0;
     int after_moved_count = 0;
 
-    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
-    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+    vec.before_moved.connect([&](size_t, size_t, size_t) { ++before_moved_count; });
+    vec.after_moved.connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
     // empty range
     vec.move(vec.cbegin() + 1, vec.cbegin() + 1, vec.cend());
