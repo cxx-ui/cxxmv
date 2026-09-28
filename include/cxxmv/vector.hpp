@@ -5,6 +5,8 @@
 #pragma once
 
 #include "ranges/model.hpp"
+#include <algorithm>
+#include <cassert>
 #include <stdexcept>
 #include <vector>
 
@@ -197,6 +199,38 @@ public:
         erase(begin(), end());
     }
 
+    /// Moves elements from [first, last) to position before dest
+    void move(const const_iterator & first,
+              const const_iterator & last,
+              const const_iterator & dest) {
+
+        assert((dest <= first || dest >= last) && "destination should not be inside moved range");
+
+        if (first == last || dest == first || dest == last) {
+            // no move required
+            return;
+        }
+
+        auto first_idx = std::distance(storage_.cbegin(), first);
+        auto last_idx = std::distance(storage_.cbegin(), last);
+        auto dest_idx = std::distance(storage_.cbegin(), dest);
+        auto sz = last_idx - first_idx;
+
+        before_moved(cbegin() + first_idx, sz, cbegin() + dest_idx);
+
+        auto storage_first = storage_.begin() + first_idx;
+        auto storage_last = storage_.begin() + last_idx;
+        auto storage_dest = storage_.begin() + dest_idx;
+
+        if (dest_idx < first_idx) {
+            std::rotate(storage_dest, storage_first, storage_last);
+        } else {
+            std::rotate(storage_first, storage_last, storage_dest);
+        }
+
+        after_moved(cbegin() + first_idx, sz, cbegin() + dest_idx);
+    }
+
     /// Returns const reference to element
     const T & at(size_t idx) const {
         return storage_.at(idx);
@@ -236,6 +270,12 @@ public:
     /// The signal is after after item is changed
     mutable signal<void (const_iterator)> after_changed;
 
+    /// The signal is emitted before items moved
+    mutable signal<void (const_iterator, size_t, const_iterator)> before_moved;
+
+    /// The signal is emitted after items moved
+    mutable signal<void (const_iterator, size_t, const_iterator)> after_moved;
+
 private:
     /// Assigns value to element
     void set(const const_iterator & cit, const T & val) {
@@ -259,6 +299,7 @@ private:
 
 static_assert(ranges::observable_as<vector<int>, int>);
 static_assert(ranges::model<vector<int>, int>);
+static_assert(ranges::observable_with_move<vector<int>>);
 
 
 }

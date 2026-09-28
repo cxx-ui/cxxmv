@@ -29,6 +29,16 @@ concept observable = std::ranges::random_access_range<Range> && requires(const R
 };
 
 
+/// Observable range with support for move operations
+template <typename Range>
+concept observable_with_move = observable<Range> && requires(const Range & obj) {
+    { obj.before_moved } ->
+        Signal <std::ranges::iterator_t<Range>, size_t, std::ranges::iterator_t<Range>>;
+    { obj.after_moved } ->
+        Signal <std::ranges::iterator_t<Range>, size_t, std::ranges::iterator_t<Range>>;
+};
+
+
 /// Concept for observable range values of which can be obtained and used to construct another type
 template <typename Range, typename Val>
 concept observable_as = observable<Range> &&

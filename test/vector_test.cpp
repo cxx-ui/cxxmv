@@ -61,6 +61,11 @@ BOOST_AUTO_TEST_CASE(insert_single) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto pos, size_t count) {
         ++before_inserted_count;
@@ -101,6 +106,8 @@ BOOST_AUTO_TEST_CASE(insert_single) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -114,6 +121,11 @@ BOOST_AUTO_TEST_CASE(insert_range) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto pos, size_t count) {
         ++before_inserted_count;
@@ -158,6 +170,8 @@ BOOST_AUTO_TEST_CASE(insert_range) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -171,6 +185,11 @@ BOOST_AUTO_TEST_CASE(push_back) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto pos, size_t count) {
         ++before_inserted_count;
@@ -211,6 +230,8 @@ BOOST_AUTO_TEST_CASE(push_back) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -224,6 +245,11 @@ BOOST_AUTO_TEST_CASE(emplace) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto pos, size_t count) {
         ++before_inserted_count;
@@ -270,6 +296,8 @@ BOOST_AUTO_TEST_CASE(emplace) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -283,6 +311,11 @@ BOOST_AUTO_TEST_CASE(emplace_back) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto pos, size_t count) {
         ++before_inserted_count;
@@ -329,6 +362,8 @@ BOOST_AUTO_TEST_CASE(emplace_back) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -342,6 +377,11 @@ BOOST_AUTO_TEST_CASE(erase) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_erased.connect([&](auto pos, size_t count) {
         ++before_erased_count;
@@ -388,6 +428,8 @@ BOOST_AUTO_TEST_CASE(erase) {
     BOOST_CHECK_EQUAL(after_erased_count, 1);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -401,6 +443,11 @@ BOOST_AUTO_TEST_CASE(clear) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_erased.connect([&](auto pos, size_t count) {
         ++before_erased_count;
@@ -440,6 +487,8 @@ BOOST_AUTO_TEST_CASE(clear) {
     BOOST_CHECK_EQUAL(after_erased_count, 1);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -453,6 +502,11 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_changed.connect([&](auto pos) {
         ++before_changed_count;
@@ -491,6 +545,8 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -504,6 +560,11 @@ BOOST_AUTO_TEST_CASE(at_assign) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_changed.connect([&](auto pos) {
         ++before_changed_count;
@@ -543,6 +604,8 @@ BOOST_AUTO_TEST_CASE(at_assign) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -556,6 +619,11 @@ BOOST_AUTO_TEST_CASE(insert_empty_range) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
     vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
@@ -576,6 +644,8 @@ BOOST_AUTO_TEST_CASE(insert_empty_range) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -589,6 +659,11 @@ BOOST_AUTO_TEST_CASE(erase_empty_range) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
     vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
@@ -608,6 +683,8 @@ BOOST_AUTO_TEST_CASE(erase_empty_range) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -621,6 +698,11 @@ BOOST_AUTO_TEST_CASE(clear_empty) {
     int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
 
     vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
     vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
@@ -639,6 +721,8 @@ BOOST_AUTO_TEST_CASE(clear_empty) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 
@@ -671,6 +755,153 @@ BOOST_AUTO_TEST_CASE(unique_ptr_elements) {
 
     vec.clear();
     BOOST_CHECK(vec.empty());
+}
+
+
+/// Tests moving elements to position after them
+BOOST_AUTO_TEST_CASE(move_forward) {
+    mv::vector<int> vec{1, 2, 3, 4, 5};
+
+    int before_inserted_count = 0;
+    int after_inserted_count = 0;
+    int before_erased_count = 0;
+    int after_erased_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto first, size_t count, auto dest) {
+        ++before_moved_count;
+        BOOST_CHECK_EQUAL(after_moved_count, 0);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 5);
+
+        // vector is not modified yet
+        std::vector<int> expected{1, 2, 3, 4, 5};
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+    });
+
+    vec.after_moved.connect([&](auto first, size_t count, auto dest) {
+        ++after_moved_count;
+        BOOST_CHECK_EQUAL(before_moved_count, 1);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 5);
+
+        // vector is already modified
+        std::vector<int> expected{1, 4, 5, 2, 3};
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+    });
+
+    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](auto) { ++before_changed_count; });
+    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cend());
+
+    std::vector<int> expected{1, 4, 5, 2, 3};
+    BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+
+    BOOST_CHECK_EQUAL(before_inserted_count, 0);
+    BOOST_CHECK_EQUAL(after_inserted_count, 0);
+    BOOST_CHECK_EQUAL(before_erased_count, 0);
+    BOOST_CHECK_EQUAL(after_erased_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 1);
+    BOOST_CHECK_EQUAL(after_moved_count, 1);
+}
+
+
+/// Tests moving elements to position before them
+BOOST_AUTO_TEST_CASE(move_backward) {
+    mv::vector<int> vec{1, 2, 3, 4, 5};
+
+    int before_inserted_count = 0;
+    int after_inserted_count = 0;
+    int before_erased_count = 0;
+    int after_erased_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto first, size_t count, auto dest) {
+        ++before_moved_count;
+        BOOST_CHECK_EQUAL(after_moved_count, 0);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 3);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 1);
+
+        // vector is not modified yet
+        std::vector<int> expected{1, 2, 3, 4, 5};
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+    });
+
+    vec.after_moved.connect([&](auto first, size_t count, auto dest) {
+        ++after_moved_count;
+        BOOST_CHECK_EQUAL(before_moved_count, 1);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), first), 3);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), dest), 1);
+
+        // vector is already modified
+        std::vector<int> expected{1, 4, 5, 2, 3};
+        BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+    });
+
+    vec.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
+    vec.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
+    vec.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
+    vec.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
+    vec.before_changed.connect([&](auto) { ++before_changed_count; });
+    vec.after_changed.connect([&](auto) { ++after_changed_count; });
+
+    vec.move(vec.cbegin() + 3, vec.cend(), vec.cbegin() + 1);
+
+    std::vector<int> expected{1, 4, 5, 2, 3};
+    BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+
+    BOOST_CHECK_EQUAL(before_inserted_count, 0);
+    BOOST_CHECK_EQUAL(after_inserted_count, 0);
+    BOOST_CHECK_EQUAL(before_erased_count, 0);
+    BOOST_CHECK_EQUAL(after_erased_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 1);
+    BOOST_CHECK_EQUAL(after_moved_count, 1);
+}
+
+
+/// Tests that moves which don't change vector don't emit signals
+BOOST_AUTO_TEST_CASE(move_noop) {
+    mv::vector<int> vec{1, 2, 3, 4, 5};
+
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    vec.before_moved.connect([&](auto, size_t, auto) { ++before_moved_count; });
+    vec.after_moved.connect([&](auto, size_t, auto) { ++after_moved_count; });
+
+    // empty range
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 1, vec.cend());
+
+    // destination is the first moved element
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cbegin() + 1);
+
+    // destination is the element after moved ones
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cbegin() + 3);
+
+    std::vector<int> expected{1, 2, 3, 4, 5};
+    BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+
+    BOOST_CHECK_EQUAL(before_moved_count, 0);
+    BOOST_CHECK_EQUAL(after_moved_count, 0);
 }
 
 

@@ -264,4 +264,139 @@ BOOST_AUTO_TEST_CASE(change_base) {
 }
 
 
+/// Tests moving elements in base model to position after them
+BOOST_AUTO_TEST_CASE(move_base_forward) {
+    int rows_about_to_be_inserted_count = 0;
+    int rows_inserted_count = 0;
+    int rows_about_to_be_removed_count = 0;
+    int rows_removed_count = 0;
+    int data_changed_count = 0;
+    int rows_about_to_be_moved_count = 0;
+    int rows_moved_count = 0;
+
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeMoved,
+                     [&](const QModelIndex & source_parent, int source_start, int source_end,
+                         const QModelIndex & dest_parent, int dest_row) {
+        ++rows_about_to_be_moved_count;
+        BOOST_CHECK_EQUAL(rows_moved_count, 0);
+        BOOST_CHECK(!source_parent.isValid());
+        BOOST_CHECK_EQUAL(source_start, 0);
+        BOOST_CHECK_EQUAL(source_end, 0);
+        BOOST_CHECK(!dest_parent.isValid());
+        BOOST_CHECK_EQUAL(dest_row, 3);
+
+        // model is not modified yet
+        BOOST_CHECK(model.data(model.index(0, 0)) == "John");
+    });
+
+    QObject::connect(&model, &QAbstractItemModel::rowsMoved,
+                     [&](const QModelIndex & source_parent, int source_start, int source_end,
+                         const QModelIndex & dest_parent, int dest_row) {
+        ++rows_moved_count;
+        BOOST_CHECK_EQUAL(rows_about_to_be_moved_count, 1);
+        BOOST_CHECK(!source_parent.isValid());
+        BOOST_CHECK_EQUAL(source_start, 0);
+        BOOST_CHECK_EQUAL(source_end, 0);
+        BOOST_CHECK(!dest_parent.isValid());
+        BOOST_CHECK_EQUAL(dest_row, 3);
+
+        // model is already modified
+        BOOST_CHECK(model.data(model.index(2, 0)) == "John");
+    });
+
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeInserted, [&] {
+        ++rows_about_to_be_inserted_count;
+    });
+    QObject::connect(&model, &QAbstractItemModel::rowsInserted, [&] { ++rows_inserted_count; });
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeRemoved, [&] {
+        ++rows_about_to_be_removed_count;
+    });
+    QObject::connect(&model, &QAbstractItemModel::rowsRemoved, [&] { ++rows_removed_count; });
+    QObject::connect(&model, &QAbstractItemModel::dataChanged, [&] { ++data_changed_count; });
+
+    users.move(users.cbegin(), users.cbegin() + 1, users.cend());
+
+    BOOST_CHECK_EQUAL(model.rowCount(), 3);
+    BOOST_CHECK(model.data(model.index(0, 0)) == "Jane");
+    BOOST_CHECK(model.data(model.index(1, 0)) == "Bob");
+    BOOST_CHECK(model.data(model.index(2, 0)) == "John");
+    BOOST_CHECK(model.data(model.index(2, 1)) == "Smith");
+
+    BOOST_CHECK_EQUAL(rows_about_to_be_inserted_count, 0);
+    BOOST_CHECK_EQUAL(rows_inserted_count, 0);
+    BOOST_CHECK_EQUAL(rows_about_to_be_removed_count, 0);
+    BOOST_CHECK_EQUAL(rows_removed_count, 0);
+    BOOST_CHECK_EQUAL(data_changed_count, 0);
+    BOOST_CHECK_EQUAL(rows_about_to_be_moved_count, 1);
+    BOOST_CHECK_EQUAL(rows_moved_count, 1);
+}
+
+
+/// Tests moving elements in base model to position before them
+BOOST_AUTO_TEST_CASE(move_base_backward) {
+    int rows_about_to_be_inserted_count = 0;
+    int rows_inserted_count = 0;
+    int rows_about_to_be_removed_count = 0;
+    int rows_removed_count = 0;
+    int data_changed_count = 0;
+    int rows_about_to_be_moved_count = 0;
+    int rows_moved_count = 0;
+
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeMoved,
+                     [&](const QModelIndex & source_parent, int source_start, int source_end,
+                         const QModelIndex & dest_parent, int dest_row) {
+        ++rows_about_to_be_moved_count;
+        BOOST_CHECK_EQUAL(rows_moved_count, 0);
+        BOOST_CHECK(!source_parent.isValid());
+        BOOST_CHECK_EQUAL(source_start, 1);
+        BOOST_CHECK_EQUAL(source_end, 2);
+        BOOST_CHECK(!dest_parent.isValid());
+        BOOST_CHECK_EQUAL(dest_row, 0);
+
+        // model is not modified yet
+        BOOST_CHECK(model.data(model.index(0, 0)) == "John");
+    });
+
+    QObject::connect(&model, &QAbstractItemModel::rowsMoved,
+                     [&](const QModelIndex & source_parent, int source_start, int source_end,
+                         const QModelIndex & dest_parent, int dest_row) {
+        ++rows_moved_count;
+        BOOST_CHECK_EQUAL(rows_about_to_be_moved_count, 1);
+        BOOST_CHECK(!source_parent.isValid());
+        BOOST_CHECK_EQUAL(source_start, 1);
+        BOOST_CHECK_EQUAL(source_end, 2);
+        BOOST_CHECK(!dest_parent.isValid());
+        BOOST_CHECK_EQUAL(dest_row, 0);
+
+        // model is already modified
+        BOOST_CHECK(model.data(model.index(0, 0)) == "Jane");
+    });
+
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeInserted, [&] {
+        ++rows_about_to_be_inserted_count;
+    });
+    QObject::connect(&model, &QAbstractItemModel::rowsInserted, [&] { ++rows_inserted_count; });
+    QObject::connect(&model, &QAbstractItemModel::rowsAboutToBeRemoved, [&] {
+        ++rows_about_to_be_removed_count;
+    });
+    QObject::connect(&model, &QAbstractItemModel::rowsRemoved, [&] { ++rows_removed_count; });
+    QObject::connect(&model, &QAbstractItemModel::dataChanged, [&] { ++data_changed_count; });
+
+    users.move(users.cbegin() + 1, users.cend(), users.cbegin());
+
+    BOOST_CHECK_EQUAL(model.rowCount(), 3);
+    BOOST_CHECK(model.data(model.index(0, 0)) == "Jane");
+    BOOST_CHECK(model.data(model.index(1, 0)) == "Bob");
+    BOOST_CHECK(model.data(model.index(2, 0)) == "John");
+
+    BOOST_CHECK_EQUAL(rows_about_to_be_inserted_count, 0);
+    BOOST_CHECK_EQUAL(rows_inserted_count, 0);
+    BOOST_CHECK_EQUAL(rows_about_to_be_removed_count, 0);
+    BOOST_CHECK_EQUAL(rows_removed_count, 0);
+    BOOST_CHECK_EQUAL(data_changed_count, 0);
+    BOOST_CHECK_EQUAL(rows_about_to_be_moved_count, 1);
+    BOOST_CHECK_EQUAL(rows_moved_count, 1);
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

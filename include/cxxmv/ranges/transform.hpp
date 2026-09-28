@@ -17,7 +17,6 @@
 #include <concepts>
 #include <functional>
 #include <iterator>
-#include <memory>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -26,12 +25,98 @@
 namespace mv::ranges {
 
 
-/// Transformed observable range or range model projection
-template <projectable_observable Range, typename GetFn, typename SetFn = empty_set_fn>
-class transform_projection: public projection_base {
+/// Const iterator over elements of transform projection
+template <typename Range, typename GetFn>
+class transform_const_iterator {
     /// Type of const iterator over base range elements
     using base_const_iterator = std::ranges::iterator_t<const Range>;
 
+public:
+    using iterator_concept = std::random_access_iterator_tag;
+    using value_type = std::remove_cvref_t<
+        std::invoke_result_t<const GetFn &, const std::ranges::range_value_t<Range> &>>;
+    using difference_type = std::iter_difference_t<base_const_iterator>;
+
+    /// Constructs invalid iterator
+    transform_const_iterator() = default;
+
+    /// Constructs iterator from base iterator and get function
+    transform_const_iterator(base_const_iterator it, const GetFn * fn):
+        it_{it}, fn_{fn} {}
+
+    decltype(auto) operator*() const { return (*fn_)(*it_); }
+    decltype(auto) operator[](difference_type n) const { return (*fn_)(it_[n]); }
+
+    transform_const_iterator & operator++() { ++it_; return *this; }
+    transform_const_iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
+    transform_const_iterator & operator--() { --it_; return *this; }
+    transform_const_iterator operator--(int) { auto tmp = *this; --it_; return tmp; }
+
+    transform_const_iterator & operator+=(difference_type n) { it_ += n; return *this; }
+    transform_const_iterator & operator-=(difference_type n) { it_ -= n; return *this; }
+
+    friend transform_const_iterator operator+(transform_const_iterator it, difference_type n) {
+        return it += n;
+    }
+
+    friend transform_const_iterator operator+(difference_type n, transform_const_iterator it) {
+        return it += n;
+    }
+
+    friend transform_const_iterator operator-(transform_const_iterator it, difference_type n) {
+        return it -= n;
+    }
+
+    friend difference_type operator-(const transform_const_iterator & a,
+                                     const transform_const_iterator & b) {
+        return a.it_ - b.it_;
+    }
+
+    friend bool operator==(const transform_const_iterator & a, const transform_const_iterator & b) {
+        return a.it_ == b.it_;
+    }
+
+    friend auto operator<=>(const transform_const_iterator & a,
+                            const transform_const_iterator & b) {
+        return a.it_ <=> b.it_;
+    }
+
+    /// Returns base iterator
+    const base_const_iterator & base() const { return it_; }
+
+private:
+    base_const_iterator it_;            ///< Iterator in base range
+    const GetFn * fn_ = nullptr;        ///< Get function
+};
+
+
+/// Base class of transform projection with move signals. Empty for ranges without move support.
+template <typename Range, typename GetFn>
+class transform_move_signals {};
+
+
+/// Base class of transform projection with move signals
+template <observable_with_move Range, typename GetFn>
+class transform_move_signals<Range, GetFn> {
+public:
+    /// Type of const iterator over transformed elements
+    using const_iterator = transform_const_iterator<Range, GetFn>;
+
+    /// The signal is emitted before items moved
+    mutable signal<void (const_iterator, size_t, const_iterator)> before_moved;
+
+    /// The signal is emitted after items moved
+    mutable signal<void (const_iterator, size_t, const_iterator)> after_moved;
+
+protected:
+    scoped_signal_connection before_moved_con_;         ///< Connection to base before_moved
+    scoped_signal_connection after_moved_con_;          ///< Connection to base after_moved
+};
+
+
+/// Transformed observable range or range model projection
+template <projectable_observable Range, typename GetFn, typename SetFn = empty_set_fn>
+class transform_projection: public projection_base, public transform_move_signals<Range, GetFn> {
     /// Type of iterator over base range elements
     using base_iterator = std::ranges::iterator_t<Range>;
 
@@ -42,49 +127,11 @@ class transform_projection: public projection_base {
     static constexpr bool is_model = !std::same_as<SetFn, empty_set_fn> && model<Range, base_value>;
 
 public:
-    /// Type of transformed elements
-    using value_type = std::remove_cvref_t<std::invoke_result_t<const GetFn &, const base_value &>>;
-
     /// Const iterator over transformed elements
-    class const_iterator {
-    public:
-        using iterator_concept = std::random_access_iterator_tag;
-        using value_type = transform_projection::value_type;
-        using difference_type = std::iter_difference_t<base_const_iterator>;
+    using const_iterator = transform_const_iterator<Range, GetFn>;
 
-        /// Constructs singular iterator
-        const_iterator() = default;
-
-        /// Constructs iterator from base iterator and get function
-        const_iterator(base_const_iterator it, const GetFn * fn):
-            it_{it}, fn_{fn} {}
-
-        decltype(auto) operator*() const { return (*fn_)(*it_); }
-        decltype(auto) operator[](difference_type n) const { return (*fn_)(it_[n]); }
-
-        const_iterator & operator++() { ++it_; return *this; }
-        const_iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
-        const_iterator & operator--() { --it_; return *this; }
-        const_iterator operator--(int) { auto tmp = *this; --it_; return tmp; }
-
-        const_iterator & operator+=(difference_type n) { it_ += n; return *this; }
-        const_iterator & operator-=(difference_type n) { it_ -= n; return *this; }
-
-        friend const_iterator operator+(const_iterator it, difference_type n) { return it += n; }
-        friend const_iterator operator+(difference_type n, const_iterator it) { return it += n; }
-        friend const_iterator operator-(const_iterator it, difference_type n) { return it -= n; }
-        friend difference_type operator-(const const_iterator & a, const const_iterator & b) { return a.it_ - b.it_; }
-
-        friend bool operator==(const const_iterator & a, const const_iterator & b) { return a.it_ == b.it_; }
-        friend auto operator<=>(const const_iterator & a, const const_iterator & b) { return a.it_ <=> b.it_; }
-
-        /// Returns base iterator
-        const base_const_iterator & base() const { return it_; }
-
-    private:
-        base_const_iterator it_;            ///< Iterator in base range
-        const GetFn * fn_ = nullptr;        ///< Get function
-    };
+    /// Type of transformed elements
+    using value_type = typename const_iterator::value_type;
 
     /// Iterator over transformed elements that allows modification of elements.
     /// Assignment through dereferenced iterator modifies base element with set function.
@@ -163,59 +210,50 @@ public:
         const SetFn * set_fn_ = nullptr;    ///< Set function
     };
 
-    /// Signal forwarding base range signal with base iterators replaced by transformed ones
-    template <typename BaseSig>
-    class transform_signal {
-    public:
-        /// Constructs signal from base signal and get function
-        transform_signal(BaseSig base, const GetFn * fn):
-            base_{std::move(base)}, fn_{fn} {}
-
-        /// Connects function to base signal
-        template <typename F>
-        signal_connection connect(const F & f) const {
-            return base_.connect([f, fn = fn_](const base_const_iterator & it, auto ... args) {
-                f(const_iterator{it, fn}, args...);
-            });
-        }
-
-    private:
-        BaseSig base_;                      ///< Base range signal
-        const GetFn * fn_;                  ///< Get function
-    };
-
     /// Constructs transform projection with specified base range, get and set functions
     transform_projection(Range b, GetFn gf, SetFn sf = {}):
         base_{std::move(b)},
-        get_fn_{std::make_shared<const GetFn>(std::move(gf))},
-        set_fn_{std::make_shared<const SetFn>(std::move(sf))},
-        before_inserted{base_.before_inserted, get_fn_.get()},
-        after_inserted{base_.after_inserted, get_fn_.get()},
-        before_erased{base_.before_erased, get_fn_.get()},
-        after_erased{base_.after_erased, get_fn_.get()},
-        before_changed{base_.before_changed, get_fn_.get()},
-        after_changed{base_.after_changed, get_fn_.get()} {}
+        get_fn_{std::move(gf)},
+        set_fn_{std::move(sf)} {
+
+        connect_base();
+    }
 
     /// Copy constructor
-    transform_projection(const transform_projection &) = default;
+    transform_projection(const transform_projection & other):
+        base_{other.base_},
+        get_fn_{other.get_fn_},
+        set_fn_{other.set_fn_} {
+
+        connect_base();
+    }
 
     /// Move constructor
     transform_projection(transform_projection && other):
+        transform_move_signals<Range, GetFn>{std::move(other)},
         base_{std::move(other.base_)},
         get_fn_{std::move(other.get_fn_)},
         set_fn_{std::move(other.set_fn_)},
-        before_inserted{base_.before_inserted, get_fn_.get()},
-        after_inserted{base_.after_inserted, get_fn_.get()},
-        before_erased{base_.before_erased, get_fn_.get()},
-        after_erased{base_.after_erased, get_fn_.get()},
-        before_changed{base_.before_changed, get_fn_.get()},
-        after_changed{base_.after_changed, get_fn_.get()} {}
+        before_inserted{std::move(other.before_inserted)},
+        after_inserted{std::move(other.after_inserted)},
+        before_erased{std::move(other.before_erased)},
+        after_erased{std::move(other.after_erased)},
+        before_changed{std::move(other.before_changed)},
+        after_changed{std::move(other.after_changed)} {
+
+        other.disconnect_base();
+        connect_base();
+    }
 
     /// Returns const iterator pointing to the first transformed element
-    const_iterator begin() const { return {std::ranges::begin(base_), get_fn_.get()}; }
+    const_iterator begin() const {
+        return {std::ranges::begin(base_), &get_fn_};
+    }
 
     /// Returns const iterator pointing to one past the last transformed element
-    const_iterator end() const { return {std::ranges::end(base_), get_fn_.get()}; }
+    const_iterator end() const {
+        return {std::ranges::end(base_), &get_fn_};
+    }
 
     /// Returns const iterator pointing to the first transformed element
     const_iterator cbegin() const { return begin(); }
@@ -225,40 +263,104 @@ public:
 
     /// Returns iterator pointing to the first transformed element
     iterator begin() requires is_model {
-        return {std::ranges::begin(base_), get_fn_.get(), set_fn_.get()};
+        return {std::ranges::begin(base_), &get_fn_, &set_fn_};
     }
 
     /// Returns iterator pointing to one past the last transformed element
     iterator end() requires is_model {
-        return {std::ranges::end(base_), get_fn_.get(), set_fn_.get()};
+        return {std::ranges::end(base_), &get_fn_, &set_fn_};
     }
 
     /// Returns number of elements
     auto size() const { return std::ranges::size(base_); }
 
-private:
-    Range base_;                                ///< Base range
-    std::shared_ptr<const GetFn> get_fn_;       ///< Get function shared by all copies
-    std::shared_ptr<const SetFn> set_fn_;       ///< Set function shared by all copies
-
-public:
     /// The signal is emitted before items added
-    transform_signal<decltype(Range::before_inserted)> before_inserted;
+    mutable signal<void (const_iterator, size_t)> before_inserted;
 
     /// The signal is emitted after items added
-    transform_signal<decltype(Range::after_inserted)> after_inserted;
+    mutable signal<void (const_iterator, size_t)> after_inserted;
 
     /// The signal is emitted before items removed
-    transform_signal<decltype(Range::before_erased)> before_erased;
+    mutable signal<void (const_iterator, size_t)> before_erased;
 
     /// The signal is emitted after items removed
-    transform_signal<decltype(Range::after_erased)> after_erased;
+    mutable signal<void (const_iterator, size_t)> after_erased;
 
     /// The signal is emitted before item is changed
-    transform_signal<decltype(Range::before_changed)> before_changed;
+    mutable signal<void (const_iterator)> before_changed;
 
     /// The signal is emitted after item is changed
-    transform_signal<decltype(Range::after_changed)> after_changed;
+    mutable signal<void (const_iterator)> after_changed;
+
+private:
+    /// Connects to signals of base range to emit signals of this projection
+    void connect_base() {
+        before_inserted_con_ = base_.before_inserted.connect([this](auto && pos, size_t count) {
+            before_inserted(const_iterator{pos, &get_fn_}, count);
+        });
+
+        after_inserted_con_ = base_.after_inserted.connect([this](auto && pos, size_t count) {
+            after_inserted(const_iterator{pos, &get_fn_}, count);
+        });
+
+        before_erased_con_ = base_.before_erased.connect([this](auto && pos, size_t count) {
+            before_erased(const_iterator{pos, &get_fn_}, count);
+        });
+
+        after_erased_con_ = base_.after_erased.connect([this](auto && pos, size_t count) {
+            after_erased(const_iterator{pos, &get_fn_}, count);
+        });
+
+        before_changed_con_ = base_.before_changed.connect([this](auto && pos) {
+            before_changed(const_iterator{pos, &get_fn_});
+        });
+
+        after_changed_con_ = base_.after_changed.connect([this](auto && pos) {
+            after_changed(const_iterator{pos, &get_fn_});
+        });
+
+        if constexpr (observable_with_move<Range>) {
+            this->before_moved_con_ = base_.before_moved.connect(
+                [this](auto && first, size_t count, auto && dest) {
+                    this->before_moved(const_iterator{first, &get_fn_},
+                                       count,
+                                       const_iterator{dest, &get_fn_});
+                });
+
+            this->after_moved_con_ = base_.after_moved.connect(
+                [this](auto && first, size_t count, auto && dest) {
+                    this->after_moved(const_iterator{first, &get_fn_},
+                                      count,
+                                      const_iterator{dest, &get_fn_});
+                });
+        }
+    }
+
+    /// Disconnects from signals of base range
+    void disconnect_base() {
+        before_inserted_con_.disconnect();
+        after_inserted_con_.disconnect();
+        before_erased_con_.disconnect();
+        after_erased_con_.disconnect();
+        before_changed_con_.disconnect();
+        after_changed_con_.disconnect();
+
+        if constexpr (observable_with_move<Range>) {
+            this->before_moved_con_.disconnect();
+            this->after_moved_con_.disconnect();
+        }
+    }
+
+    Range base_;                                        ///< Base range
+    GetFn get_fn_;                                      ///< Get function
+    SetFn set_fn_;                                      ///< Set function
+
+    scoped_signal_connection before_inserted_con_;      ///< Connection to base before_inserted
+    scoped_signal_connection after_inserted_con_;       ///< Connection to base after_inserted
+    scoped_signal_connection before_erased_con_;        ///< Connection to base before_erased
+    scoped_signal_connection after_erased_con_;         ///< Connection to base after_erased
+    scoped_signal_connection before_changed_con_;       ///< Connection to base before_changed
+    scoped_signal_connection after_changed_con_;        ///< Connection to base after_changed
 };
 
 

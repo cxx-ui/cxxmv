@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../signal_ref.hpp"
+#include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <ranges>
 #include <utility>
@@ -20,10 +21,11 @@ namespace mv::ranges {
 
 template <typename Base>
 requires observable<Base>
-class ref_projection: public projection_base {
+class ref_projection: public projection_base, public move_signal_refs<Base> {
 public:
     /// Constructs view with reference to another range
     ref_projection(Base & b):
+        move_signal_refs<Base>{b},
         base_{b},
         before_inserted{b.before_inserted},
         after_inserted{b.after_inserted},

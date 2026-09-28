@@ -56,6 +56,23 @@ public:
             int row = get_row(pos);
             emit dataChanged(index(row, 0), index(row, columnCount() - 1));
         });
+
+        if constexpr (ranges::observable_with_move<Range>) {
+            before_moved_con_ = rng_.before_moved.connect(
+            [this](auto first, std::size_t count, auto dest) {
+                assert(count > 0 && "moved count should not be 0");
+                int row = get_row(first);
+                [[maybe_unused]] bool res = beginMoveRows(QModelIndex{}, row,
+                                                          row + static_cast<int>(count) - 1,
+                                                          QModelIndex{}, get_row(dest));
+                assert(res && "invalid move");
+            });
+
+            after_moved_con_ = rng_.after_moved.connect([this](auto, std::size_t count, auto) {
+                assert(count > 0 && "moved count should not be 0");
+                endMoveRows();
+            });
+        }
     }
 
     /// Returns index of item with specified row and column
@@ -100,6 +117,8 @@ private:
     scoped_signal_connection before_erased_con_;        ///< Connection to before_erased signal
     scoped_signal_connection after_erased_con_;         ///< Connection to after_erased signal
     scoped_signal_connection after_changed_con_;        ///< Connection to after_changed signal
+    scoped_signal_connection before_moved_con_;         ///< Connection to before_moved signal
+    scoped_signal_connection after_moved_con_;          ///< Connection to after_moved signal
 };
 
 

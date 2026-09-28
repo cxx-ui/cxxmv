@@ -416,4 +416,105 @@ BOOST_AUTO_TEST_CASE(transform_ref_base_copy) {
 }
 
 
+/// Tests moving elements in base model
+BOOST_AUTO_TEST_CASE(move_base) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"},
+                              {"Alice", "White"}, {"Tom", "Green"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    static_assert(mv::ranges::observable_with_move<decltype(names)>);
+
+    int before_inserted_count = 0;
+    int after_inserted_count = 0;
+    int before_erased_count = 0;
+    int after_erased_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+    int before_moved_count = 0;
+    int after_moved_count = 0;
+
+    names.before_moved.connect([&](auto first, size_t count, auto dest) {
+        ++before_moved_count;
+        BOOST_CHECK_EQUAL(after_moved_count, 0);
+        BOOST_CHECK_EQUAL(std::distance(names.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(names.cbegin(), dest), 5);
+        BOOST_CHECK_EQUAL(*first, "Jane");
+
+        // transformed model is not modified yet
+        std::vector<std::string> expected{"John", "Jane", "Bob", "Alice", "Tom"};
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
+    });
+
+    names.after_moved.connect([&](auto first, size_t count, auto dest) {
+        ++after_moved_count;
+        BOOST_CHECK_EQUAL(before_moved_count, 1);
+        BOOST_CHECK_EQUAL(std::distance(names.cbegin(), first), 1);
+        BOOST_CHECK_EQUAL(count, 2);
+        BOOST_CHECK_EQUAL(std::distance(names.cbegin(), dest), 5);
+
+        // transformed model is already modified
+        std::vector<std::string> expected{"John", "Alice", "Tom", "Jane", "Bob"};
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
+    });
+
+    names.before_inserted.connect([&](auto, size_t) { ++before_inserted_count; });
+    names.after_inserted.connect([&](auto, size_t) { ++after_inserted_count; });
+    names.before_erased.connect([&](auto, size_t) { ++before_erased_count; });
+    names.after_erased.connect([&](auto, size_t) { ++after_erased_count; });
+    names.before_changed.connect([&](auto) { ++before_changed_count; });
+    names.after_changed.connect([&](auto) { ++after_changed_count; });
+
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cend());
+
+    std::vector<std::string> expected{"John", "Alice", "Tom", "Jane", "Bob"};
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
+
+    BOOST_CHECK_EQUAL(before_inserted_count, 0);
+    BOOST_CHECK_EQUAL(after_inserted_count, 0);
+    BOOST_CHECK_EQUAL(before_erased_count, 0);
+    BOOST_CHECK_EQUAL(after_erased_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(before_moved_count, 1);
+    BOOST_CHECK_EQUAL(after_moved_count, 1);
+}
+
+
+/// Tests moving elements in base model after moving transform projection
+BOOST_AUTO_TEST_CASE(move_base_after_projection_move) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    int moved_count = 0;
+    names.after_moved.connect([&](auto, size_t, auto) { ++moved_count; });
+
+    auto names2 = std::move(names);
+
+    int moved_count2 = 0;
+    names2.after_moved.connect([&](auto first, size_t count, auto dest) {
+        ++moved_count2;
+        BOOST_CHECK_EQUAL(std::distance(names2.cbegin(), first), 2);
+        BOOST_CHECK_EQUAL(count, 1);
+        BOOST_CHECK_EQUAL(std::distance(names2.cbegin(), dest), 0);
+    });
+
+    vec.move(vec.cbegin() + 2, vec.cend(), vec.cbegin());
+
+    std::vector<std::string> expected{"Bob", "John", "Jane"};
+    BOOST_CHECK_EQUAL_COLLECTIONS(names2.cbegin(), names2.cend(),
+                                  expected.begin(), expected.end());
+
+    // slot connected before projection move is moved with signal
+    BOOST_CHECK_EQUAL(moved_count, 1);
+    BOOST_CHECK_EQUAL(moved_count2, 1);
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
