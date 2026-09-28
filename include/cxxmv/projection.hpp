@@ -11,6 +11,8 @@
 
 #include "observable.hpp"
 #include "model.hpp"
+#include <concepts>
+#include <type_traits>
 
 
 namespace mv {
@@ -37,9 +39,10 @@ concept observable_projection_as = observable_as<Projection, Value> &&
 
 
 template <typename Observable>
-concept projectable_observable = observable<Observable> && 
+concept projectable_observable = observable<Observable> &&
                                  (borrowed_observable<Observable> ||
-                                  observable_projection<Observable>);
+                                  observable_projection<Observable> ||
+                                  std::movable<std::remove_reference_t<Observable>>);
 
 template <typename Observable, typename Value>
 concept projectable_observable_as = projectable_observable<Observable> &&

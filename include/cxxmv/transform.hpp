@@ -27,14 +27,18 @@ class transform_projection: public projection_base {
 public:
     /// Constructs transform projection with specified get and set functions
     transform_projection(Observable b, GetFn gf, SetFn sf):
-        base_{b}, get_fn_{std::move(gf)}, set_fn_{std::move(sf)},
-        changed{b.changed} {}
+        base_{std::move(b)}, get_fn_{std::move(gf)}, set_fn_{std::move(sf)},
+        changed{base_.changed} {}
 
     /// Copy constructor
     transform_projection(const transform_projection &) = default;
 
     /// Move constructor
-    transform_projection(transform_projection &&) = default;
+    transform_projection(transform_projection && other):
+        base_{std::move(other.base_)},
+        get_fn_{std::move(other.get_fn_)},
+        set_fn_{std::move(other.set_fn_)},
+        changed{base_.changed} {}
 
     /// Returns transformed value
     decltype(auto) get() const {
@@ -60,12 +64,13 @@ public:
         return assign_wrapper{*this};
     }
 
-    decltype(std::declval<Observable>().changed) changed;
-
 private:
     Observable base_;
     GetFn get_fn_;
     SetFn set_fn_;
+
+public:
+    decltype(std::declval<Observable>().changed) changed;
 };
 
 
@@ -86,7 +91,7 @@ public:
 
     template <observable Observable>
     auto operator()(Observable && obj) const {
-        return transform_projection{obj, get_fn_, set_fn_};
+        return transform_projection{std::forward<Observable>(obj), get_fn_, set_fn_};
     }
 
 private:

@@ -12,6 +12,7 @@
 #include <cxxmv/basic_model.hpp>
 #include <cxxmv/transform.hpp>
 #include <type_traits>
+#include <utility>
 
 
 BOOST_AUTO_TEST_SUITE(transform_test)
@@ -124,6 +125,77 @@ BOOST_AUTO_TEST_CASE(transform_deref_convert_call) {
     };
 
     call_func(*mdl2);
+}
+
+
+/// Tests transform projection of temporary model
+BOOST_AUTO_TEST_CASE(transform_temporary_model) {
+    auto get_fn = [](int x) { return x + 1; };
+    auto set_fn = [](int & x, int y) { x = y - 1; };
+    auto mdl = mv::basic_model<int>{10} | mv::transform(get_fn, set_fn);
+
+    BOOST_CHECK_EQUAL(mdl.get(), 11);
+
+    bool changed_called = false;
+    mdl.changed.connect([&changed_called, &mdl] {
+        changed_called = true;
+        BOOST_CHECK_EQUAL(mdl.get(), 21);
+    });
+
+    mdl.assign(21);
+
+    BOOST_CHECK_EQUAL(mdl.get(), 21);
+    BOOST_CHECK(changed_called);
+}
+
+
+/// Tests moving transform projection of temporary model
+BOOST_AUTO_TEST_CASE(transform_temporary_model_move) {
+    auto get_fn = [](int x) { return x + 1; };
+    auto set_fn = [](int & x, int y) { x = y - 1; };
+    auto mdl = mv::basic_model<int>{10} | mv::transform(get_fn, set_fn);
+    auto mdl2 = std::move(mdl);
+
+    BOOST_CHECK_EQUAL(mdl2.get(), 11);
+
+    bool changed_called = false;
+    mdl2.changed.connect([&changed_called, &mdl2] {
+        changed_called = true;
+        BOOST_CHECK_EQUAL(mdl2.get(), 21);
+    });
+
+    mdl2.assign(21);
+
+    BOOST_CHECK_EQUAL(mdl2.get(), 21);
+    BOOST_CHECK(changed_called);
+}
+
+
+/// Tests copying transform projection of model reference
+BOOST_AUTO_TEST_CASE(transform_ref_model_copy) {
+    mv::basic_model<int> mdl{10};
+
+    auto get_fn = [](int x) { return x + 1; };
+    auto set_fn = [](int & x, int y) { x = y - 1; };
+    auto mdl2 = mdl | mv::transform(get_fn, set_fn);
+    auto mdl3 = mdl2;
+
+    BOOST_CHECK_EQUAL(mdl3.get(), 11);
+
+    bool changed_called = false;
+    mdl3.changed.connect([&changed_called, &mdl, &mdl2, &mdl3] {
+        changed_called = true;
+        BOOST_CHECK_EQUAL(mdl.get(), 20);
+        BOOST_CHECK_EQUAL(mdl2.get(), 21);
+        BOOST_CHECK_EQUAL(mdl3.get(), 21);
+    });
+
+    mdl3.assign(21);
+
+    BOOST_CHECK_EQUAL(mdl.get(), 20);
+    BOOST_CHECK_EQUAL(mdl2.get(), 21);
+    BOOST_CHECK_EQUAL(mdl3.get(), 21);
+    BOOST_CHECK(changed_called);
 }
 
 
