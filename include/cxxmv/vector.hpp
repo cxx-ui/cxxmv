@@ -38,6 +38,12 @@ public:
                 return *this;
             }
 
+            /// Assigns value to element with move. Emits changed signals.
+            const reference & operator=(T && val) const {
+                vec_->set(it_, std::move(val));
+                return *this;
+            }
+
             /// Assigns value of another element. Emits changed signals.
             const reference & operator=(const reference & other) const {
                 return *this = static_cast<const T &>(other);
@@ -139,9 +145,22 @@ public:
         after_inserted(begin() + idx, 1);
     }
 
+    /// Inserts element to specified position with move
+    void insert(const const_iterator & pos, T && val) {
+        auto idx = std::distance(storage_.cbegin(), pos);
+        before_inserted(pos, 1);
+        storage_.insert(pos, std::move(val));
+        after_inserted(begin() + idx, 1);
+    }
+
     /// Inserts element at the end of vector
     void push_back(const T & val) {
         insert(end(), val);
+    }
+
+    /// Moves element to the end of vector
+    void push_back(T && val) {
+        emplace(end(), std::move(val));
     }
 
     /// Constructs and inserts element at specified position
@@ -223,6 +242,14 @@ private:
         auto it = storage_.begin() + std::distance(storage_.cbegin(), cit);
         before_changed(cit);
         *it = val;
+        after_changed(cit);
+    }
+
+    /// Assigns value to element with move
+    void set(const const_iterator & cit, T && val) {
+        auto it = storage_.begin() + std::distance(storage_.cbegin(), cit);
+        before_changed(cit);
+        *it = std::move(val);
         after_changed(cit);
     }
 

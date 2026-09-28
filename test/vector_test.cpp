@@ -11,7 +11,9 @@
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/vector.hpp>
 #include <iterator>
+#include <memory>
 #include <ranges>
+#include <utility>
 #include <vector>
 
 
@@ -637,6 +639,38 @@ BOOST_AUTO_TEST_CASE(clear_empty) {
     BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
+}
+
+
+/// Tests that all operations compile for vector of unique pointers
+BOOST_AUTO_TEST_CASE(unique_ptr_elements) {
+    mv::vector<std::unique_ptr<test_user>> vec;
+
+    vec.push_back(std::make_unique<test_user>("John", "Smith"));
+    vec.insert(vec.begin(), std::make_unique<test_user>("Jane", "Doe"));
+    vec.emplace(vec.begin() + 1, std::make_unique<test_user>("Bob", "Brown"));
+    vec.emplace_back(std::make_unique<test_user>("Alice", "White"));
+
+    std::vector<std::unique_ptr<test_user>> users;
+    users.push_back(std::make_unique<test_user>("Tom", "Green"));
+    vec.insert(vec.end(), std::make_move_iterator(users.begin()), std::make_move_iterator(users.end()));
+
+    BOOST_REQUIRE_EQUAL(vec.size(), 5);
+    BOOST_CHECK(!vec.empty());
+    BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), vec.cend()), 5);
+    BOOST_CHECK_EQUAL(std::as_const(vec)[0]->first_name(), "Jane");
+    BOOST_CHECK_EQUAL(std::as_const(vec).at(1)->first_name(), "Bob");
+
+    *vec.begin() = std::make_unique<test_user>("Ann", "Black");
+    vec.at(1) = std::make_unique<test_user>("Sam", "Grey");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[0]->first_name(), "Ann");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1]->first_name(), "Sam");
+
+    vec.erase(vec.begin(), vec.begin() + 2);
+    BOOST_CHECK_EQUAL(vec.size(), 3);
+
+    vec.clear();
+    BOOST_CHECK(vec.empty());
 }
 
 
