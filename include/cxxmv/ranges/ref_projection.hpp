@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../signal_ref.hpp"
+#include "model.hpp"
 #include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <ranges>
@@ -51,6 +52,28 @@ public:
 
     /// Returns number of elements
     auto size() const { return std::ranges::size(std::as_const(base_)); }
+
+    /// Inserts elements at specified position into base range
+    template <typename It>
+    void insert(const std::ranges::iterator_t<Base> & pos, It first, It last)
+    requires model_with_insert<Base, std::ranges::range_value_t<Base>> {
+        base_.insert(pos, first, last);
+    }
+
+    /// Erases elements from base range
+    void erase(const std::ranges::iterator_t<Base> & first,
+               const std::ranges::iterator_t<Base> & last)
+    requires model_with_erase<Base, std::ranges::range_value_t<Base>> {
+        base_.erase(first, last);
+    }
+
+    /// Moves elements in base range
+    void move(const std::ranges::iterator_t<Base> & first,
+              const std::ranges::iterator_t<Base> & last,
+              const std::ranges::iterator_t<Base> & dest)
+    requires model_with_move<Base, std::ranges::range_value_t<Base>> {
+        base_.move(first, last, dest);
+    }
 
 private:
     Base & base_;           ///< Reference to base observable range

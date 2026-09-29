@@ -15,6 +15,7 @@
 #include <QTableView>
 #include <QVBoxLayout>
 #include <iostream>
+#include <vector>
 #include <qtableview.h>
 
 
@@ -75,6 +76,12 @@ public:
     /// Is model read only?
     static constexpr bool is_read_only = !mv::ranges::model<Range, contact>;
 
+    /// Does range support moving of contacts?
+    static constexpr bool supports_move = mv::ranges::model_with_move<Range, contact>;
+
+    /// Does range support inserting of contacts?
+    static constexpr bool supports_insert = mv::ranges::model_with_insert<Range, contact>;
+
     /// Constructs model with specified range of contacts and parent object
     contact_table_model(Range rng, QObject * parent = nullptr):
     mv::qt::range_model<Range>{std::move(rng), parent} {}
@@ -108,7 +115,8 @@ public:
         if constexpr (is_read_only) {
             return false;
         } else {
-            if (!idx.isValid() || role != Qt::EditRole) {
+            // display role is assigned by setItemData when dropped rows are inserted
+            if (!idx.isValid() || (role != Qt::EditRole && role != Qt::DisplayRole)) {
                 return false;
             }
 
@@ -139,14 +147,41 @@ public:
     /// Returns item flags
     Qt::ItemFlags flags(const QModelIndex & idx) const override {
         if (!idx.isValid()) {
-            return Qt::NoItemFlags;
+            // root item support drag and drop
+            return supports_move ? Qt::ItemIsDropEnabled : Qt::NoItemFlags;
         }
 
         Qt::ItemFlags res = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
         if constexpr (!is_read_only) {
             res |= Qt::ItemIsEditable;
         }
+
+        if constexpr (supports_move) {
+            res |= Qt::ItemIsDragEnabled;
+        }
+
         return res;
+    }
+
+    /// Inserts empty contacts at specified row
+    bool insertRows(int row, int count, const QModelIndex & parent = {}) override {
+        if constexpr (!supports_insert) {
+            return false;
+        } else {
+            if (parent.isValid() || row < 0 || row > this->rowCount() || count <= 0) {
+                return false;
+            }
+
+            std::vector<contact> vals(count, contact{{}, {}});
+            auto pos = std::ranges::begin(this->range()) + row;
+            this->range().insert(pos, vals.begin(), vals.end());
+            return true;
+        }
+    }
+
+    /// Returns supported drop actions
+    Qt::DropActions supportedDropActions() const override {
+        return supports_move ? Qt::MoveAction : Qt::IgnoreAction;
     }
 };
 
@@ -164,6 +199,14 @@ public:
         auto layout = new QVBoxLayout{body};
 
         contacts_view_ = new QTableView;
+        contacts_view_->setSelectionBehavior(QAbstractItemView::SelectRows);
+        contacts_view_->setSelectionMode(QAbstractItemView::SingleSelection);
+        contacts_view_->setDragDropMode(QAbstractItemView::InternalMove);
+
+        // overwrite mode is enabled in table view by default, it drops rows on items
+        // instead of dropping them between items
+        contacts_view_->setDragDropOverwriteMode(false);
+        contacts_view_->setDropIndicatorShown(true);
         layout->addWidget(contacts_view_);
 
         contacts_model_ = std::unique_ptr<QAbstractItemModel>{new contact_table_model{contacts_}};

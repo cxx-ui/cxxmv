@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../ranges/all.hpp"
+#include "../ranges/model.hpp"
 #include "../ranges/projection.hpp"
 #include "../signals.hpp"
 #include <QAbstractItemModel>
@@ -25,6 +26,14 @@ namespace mv::qt {
 /// Base Qt item model for observable range
 template <ranges::projectable_observable Range>
 class range_model: public QAbstractItemModel {
+    /// Does range support erasing of elements?
+    static constexpr bool supports_erase =
+        ranges::model_with_erase<Range, std::ranges::range_value_t<Range>>;
+
+    /// Does range support moving of elements?
+    static constexpr bool supports_move =
+        ranges::model_with_move<Range, std::ranges::range_value_t<Range>>;
+
 public:
     /// Constructs model with specified range and parent object
     range_model(Range rng, QObject * parent = nullptr):
@@ -96,6 +105,49 @@ public:
     /// Returns number of rows
     int rowCount(const QModelIndex & parent = {}) const override {
         return parent.isValid() ? 0 : static_cast<int>(std::ranges::size(rng_));
+    }
+
+    /// Removes rows from model
+    bool removeRows(int row, int count, const QModelIndex & parent = {}) override {
+        if constexpr (supports_erase) {
+            if (parent.isValid() || row < 0 || count <= 0 || row + count > rowCount()) {
+                return false;
+            }
+
+            auto first = std::ranges::begin(rng_) + row;
+            rng_.erase(first, first + count);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /// Moves rows in model to position before destination row
+    bool moveRows(const QModelIndex & source_parent,
+                  int source_row,
+                  int count,
+                  const QModelIndex & dest_parent,
+                  int dest_row) override {
+        if constexpr (supports_move) {
+            if (source_parent.isValid() || dest_parent.isValid() ||
+                source_row < 0 || count <= 0 || source_row + count > rowCount() ||
+                dest_row < 0 || dest_row > rowCount()) {
+
+                return false;
+            }
+
+            // don't move rows with destination inside move range
+            if (dest_row >= source_row && dest_row <= source_row + count) {
+                return false;
+            }
+
+            auto first = std::ranges::begin(rng_) + source_row;
+            auto dest = std::ranges::begin(rng_) + dest_row;
+            rng_.move(first, first + count, dest);
+            return true;
+        } else {
+            return false;
+        }
     }
 
 protected:
