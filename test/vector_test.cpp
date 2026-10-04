@@ -534,7 +534,7 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
     vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
 
     auto it = vec.begin() + 1;
-    *it = 10;
+    it.mut() = 10;
 
     BOOST_CHECK_EQUAL(*it, 10);
 
@@ -552,8 +552,8 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
 }
 
 
-/// Tests changing element via non-const at method
-BOOST_AUTO_TEST_CASE(at_assign) {
+/// Tests changing element via mut method
+BOOST_AUTO_TEST_CASE(mut_assign) {
     mv::vector<int> vec{1, 2, 3};
 
     int before_inserted_count = 0;
@@ -591,14 +591,12 @@ BOOST_AUTO_TEST_CASE(at_assign) {
     vec.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
 
-    vec.at(1) = 10;
+    vec.mut(1) = 10;
 
     BOOST_CHECK_EQUAL(vec.at(1), 10);
 
     std::vector<int> expected{1, 10, 3};
     BOOST_CHECK_EQUAL_COLLECTIONS(vec.begin(), vec.end(), expected.begin(), expected.end());
-
-    BOOST_CHECK_THROW(vec.at(3) = 20, std::out_of_range);
 
     BOOST_CHECK_EQUAL(before_inserted_count, 0);
     BOOST_CHECK_EQUAL(after_inserted_count, 0);
@@ -747,8 +745,8 @@ BOOST_AUTO_TEST_CASE(unique_ptr_elements) {
     BOOST_CHECK_EQUAL(std::as_const(vec)[0]->first_name(), "Jane");
     BOOST_CHECK_EQUAL(std::as_const(vec).at(1)->first_name(), "Bob");
 
-    *vec.begin() = std::make_unique<test_user>("Ann", "Black");
-    vec.at(1) = std::make_unique<test_user>("Sam", "Grey");
+    vec.begin().mut() = std::make_unique<test_user>("Ann", "Black");
+    vec.mut(1) = std::make_unique<test_user>("Sam", "Grey");
     BOOST_CHECK_EQUAL(std::as_const(vec)[0]->first_name(), "Ann");
     BOOST_CHECK_EQUAL(std::as_const(vec)[1]->first_name(), "Sam");
 

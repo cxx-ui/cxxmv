@@ -138,8 +138,7 @@ public:
                 return false;
             }
 
-            // range emits after_changed signal which is converted to dataChanged
-            *it = cont;
+            it.mut() = cont;
             return true;
         }
     }

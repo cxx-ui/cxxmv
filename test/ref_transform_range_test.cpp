@@ -4,53 +4,65 @@
 // See accompanying file LICENSE for license information.
 //
 
-/// \file transform_range_test.cpp
-/// Contains unit tests for the range transform projection.
+/// \file ref_transform_range_test.cpp
+/// Contains unit tests for the range ref_transform projection.
 
-#include "cxxmv/ranges/observable.hpp"
 #include "test_user.hpp"
 #include <boost/test/unit_test.hpp>
-#include <cxxmv/ranges/transform.hpp>
+#include <cxxmv/ranges/ref_transform.hpp>
 #include <cxxmv/vector.hpp>
+#include <memory>
 #include <ranges>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 
-BOOST_AUTO_TEST_SUITE(transform_range_test)
+namespace {
+
+/// User with public name fields
+struct user {
+    std::string first_name;
+    std::string last_name;
+};
+
+/// Returns reference to first name of user
+auto get_first_name = [](auto && u) -> auto & { return u.first_name; };
+
+}
 
 
-/// Tests construction of transform projection
+BOOST_AUTO_TEST_SUITE(ref_transform_range_test)
+
+
+/// Tests construction of ref transform projection
 BOOST_AUTO_TEST_CASE(ctor) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     using names_t = std::decay_t<decltype(names)>;
-    static_assert(mv::ranges::observable_as<names_t, std::string>);
+    static_assert(mv::ranges::model<names_t, std::string>);
     static_assert(mv::ranges::borrowed_observable<names_t>);
+    static_assert(std::is_same_v<decltype(*names.cbegin()), const std::string &>);
 
     BOOST_CHECK_EQUAL(names.size(), 3);
     BOOST_CHECK_EQUAL(std::ranges::size(names), 3);
-    BOOST_CHECK(names.begin() != names.end());
+    BOOST_CHECK(names.cbegin() != names.cend());
 
     std::vector<std::string> expected{"John", "Jane", "Bob"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
-    BOOST_CHECK_EQUAL(names.begin()[0], "John");
-    BOOST_CHECK_EQUAL(names.begin()[1], "Jane");
-    BOOST_CHECK_EQUAL(names.begin()[2], "Bob");
+    BOOST_CHECK_EQUAL(names.cbegin()[0], "John");
+    BOOST_CHECK_EQUAL(names.cbegin()[1], "Jane");
+    BOOST_CHECK_EQUAL(names.cbegin()[2], "Bob");
 }
 
 
 /// Tests inserting single element into base model
 BOOST_AUTO_TEST_CASE(insert_base_single) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int before_inserted_count = 0;
     int after_inserted_count = 0;
@@ -67,7 +79,8 @@ BOOST_AUTO_TEST_CASE(insert_base_single) {
 
         // transformed model is not modified yet
         std::vector<std::string> expected{"John", "Jane", "Bob"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.after_inserted.connect([&](size_t idx, size_t count) {
@@ -79,7 +92,8 @@ BOOST_AUTO_TEST_CASE(insert_base_single) {
 
         // transformed model is already modified
         std::vector<std::string> expected{"John", "Alice", "Jane", "Bob"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
@@ -87,10 +101,10 @@ BOOST_AUTO_TEST_CASE(insert_base_single) {
     names.before_changed.connect([&](size_t) { ++before_changed_count; });
     names.after_changed.connect([&](size_t) { ++after_changed_count; });
 
-    vec.insert(vec.begin() + 1, test_user{"Alice", "White"});
+    vec.insert(vec.begin() + 1, user{"Alice", "White"});
 
     std::vector<std::string> expected{"John", "Alice", "Jane", "Bob"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
     BOOST_CHECK_EQUAL(before_inserted_count, 1);
     BOOST_CHECK_EQUAL(after_inserted_count, 1);
@@ -103,10 +117,8 @@ BOOST_AUTO_TEST_CASE(insert_base_single) {
 
 /// Tests inserting range of elements into base model
 BOOST_AUTO_TEST_CASE(insert_base_range) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int before_inserted_count = 0;
     int after_inserted_count = 0;
@@ -123,7 +135,8 @@ BOOST_AUTO_TEST_CASE(insert_base_range) {
 
         // transformed model is not modified yet
         std::vector<std::string> expected{"John", "Jane", "Bob"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.after_inserted.connect([&](size_t idx, size_t count) {
@@ -139,7 +152,8 @@ BOOST_AUTO_TEST_CASE(insert_base_range) {
 
         // transformed model is already modified
         std::vector<std::string> expected{"John", "Alice", "Tom", "Jane", "Bob"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
@@ -147,11 +161,11 @@ BOOST_AUTO_TEST_CASE(insert_base_range) {
     names.before_changed.connect([&](size_t) { ++before_changed_count; });
     names.after_changed.connect([&](size_t) { ++after_changed_count; });
 
-    std::vector<test_user> users{{"Alice", "White"}, {"Tom", "Green"}};
+    std::vector<user> users{{"Alice", "White"}, {"Tom", "Green"}};
     vec.insert(vec.begin() + 1, users.begin(), users.end());
 
     std::vector<std::string> expected{"John", "Alice", "Tom", "Jane", "Bob"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
     BOOST_CHECK_EQUAL(before_inserted_count, 1);
     BOOST_CHECK_EQUAL(after_inserted_count, 1);
@@ -164,11 +178,9 @@ BOOST_AUTO_TEST_CASE(insert_base_range) {
 
 /// Tests erasing range of elements in base model
 BOOST_AUTO_TEST_CASE(erase_base) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"},
-                              {"Alice", "White"}, {"Tom", "Green"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"},
+                         {"Alice", "White"}, {"Tom", "Green"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int before_inserted_count = 0;
     int after_inserted_count = 0;
@@ -190,7 +202,8 @@ BOOST_AUTO_TEST_CASE(erase_base) {
 
         // transformed model is not modified yet
         std::vector<std::string> expected{"John", "Jane", "Bob", "Alice", "Tom"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.after_erased.connect([&](size_t idx, size_t count) {
@@ -204,7 +217,8 @@ BOOST_AUTO_TEST_CASE(erase_base) {
 
         // transformed model is already modified
         std::vector<std::string> expected{"John", "Alice", "Tom"};
-        BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+        BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(),
+                                      expected.begin(), expected.end());
     });
 
     names.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
@@ -215,7 +229,7 @@ BOOST_AUTO_TEST_CASE(erase_base) {
     vec.erase(vec.begin() + 1, vec.begin() + 3);
 
     std::vector<std::string> expected{"John", "Alice", "Tom"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
     BOOST_CHECK_EQUAL(before_inserted_count, 0);
     BOOST_CHECK_EQUAL(after_inserted_count, 0);
@@ -228,10 +242,8 @@ BOOST_AUTO_TEST_CASE(erase_base) {
 
 /// Tests changing element in base model
 BOOST_AUTO_TEST_CASE(change_base) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int before_inserted_count = 0;
     int after_inserted_count = 0;
@@ -263,10 +275,10 @@ BOOST_AUTO_TEST_CASE(change_base) {
     names.before_erased.connect([&](size_t, size_t) { ++before_erased_count; });
     names.after_erased.connect([&](size_t, size_t) { ++after_erased_count; });
 
-    vec.mut(1) = test_user{"Alice", "White"};
+    vec.mut(1) = user{"Alice", "White"};
 
     std::vector<std::string> expected{"John", "Alice", "Bob"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(names.begin(), names.end(), expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
     BOOST_CHECK_EQUAL(before_inserted_count, 0);
     BOOST_CHECK_EQUAL(after_inserted_count, 0);
@@ -279,15 +291,8 @@ BOOST_AUTO_TEST_CASE(change_base) {
 
 /// Tests changing element in transformed model
 BOOST_AUTO_TEST_CASE(change_transformed) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-    auto names = vec | mv::ranges::transform(get_fn, set_fn);
-
-    using names_t = std::decay_t<decltype(names)>;
-    static_assert(mv::ranges::model<names_t, std::string>);
-    static_assert(mv::ranges::borrowed_observable<names_t>);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int before_inserted_count = 0;
     int after_inserted_count = 0;
@@ -303,7 +308,7 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
 
         // element is not modified yet
         BOOST_CHECK_EQUAL(names.cbegin()[idx], "Jane");
-        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Jane");
+        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Jane");
     });
 
     names.after_changed.connect([&](size_t idx) {
@@ -313,7 +318,7 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
 
         // element is already modified
         BOOST_CHECK_EQUAL(names.cbegin()[idx], "Alice");
-        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
+        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
     });
 
     names.before_inserted.connect([&](size_t, size_t) { ++before_inserted_count; });
@@ -323,14 +328,14 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
 
     (names.begin() + 1).mut() = std::string{"Alice"};
 
-    // base model is changed with set function, other fields are kept
+    // only referenced field of base model element is changed
     BOOST_REQUIRE_EQUAL(vec.size(), 3);
-    BOOST_CHECK_EQUAL(std::as_const(vec)[0].first_name(), "John");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[0].last_name(), "Smith");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name(), "Doe");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[2].first_name(), "Bob");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[2].last_name(), "Brown");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[0].first_name, "John");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[0].last_name, "Smith");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name, "Doe");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[2].first_name, "Bob");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[2].last_name, "Brown");
 
     std::vector<std::string> expected{"John", "Alice", "Bob"};
     BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
@@ -346,82 +351,104 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
 
 /// Tests changing element in temporary transformed model
 BOOST_AUTO_TEST_CASE(change_transformed_borrowed) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
 
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-
-    int before_inserted_count = 0;
-    int after_inserted_count = 0;
-    int before_erased_count = 0;
-    int after_erased_count = 0;
     int before_changed_count = 0;
     int after_changed_count = 0;
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).before_changed.connect([&](size_t idx) {
+    (vec | mv::ranges::ref_transform(get_first_name)).before_changed.connect([&](size_t idx) {
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
 
         // element is not modified yet
-        BOOST_CHECK_EQUAL((vec | mv::ranges::transform(get_fn, set_fn)).cbegin()[idx], "Jane");
-        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Jane");
+        BOOST_CHECK_EQUAL((vec | mv::ranges::ref_transform(get_first_name)).cbegin()[idx],
+                          "Jane");
     });
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).after_changed.connect([&](size_t idx) {
+    (vec | mv::ranges::ref_transform(get_first_name)).after_changed.connect([&](size_t idx) {
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
 
         // element is already modified
-        BOOST_CHECK_EQUAL((vec | mv::ranges::transform(get_fn, set_fn)).cbegin()[idx], "Alice");
-        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
+        BOOST_CHECK_EQUAL((vec | mv::ranges::ref_transform(get_first_name)).cbegin()[idx],
+                          "Alice");
     });
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).before_inserted.connect([&](size_t, size_t) {
-        ++before_inserted_count;
-    });
-    (vec | mv::ranges::transform(get_fn, set_fn)).after_inserted.connect([&](size_t, size_t) {
-        ++after_inserted_count;
-    });
-    (vec | mv::ranges::transform(get_fn, set_fn)).before_erased.connect([&](size_t, size_t) {
-        ++before_erased_count;
-    });
-    (vec | mv::ranges::transform(get_fn, set_fn)).after_erased.connect([&](size_t, size_t) {
-        ++after_erased_count;
-    });
+    (vec | mv::ranges::ref_transform(get_first_name)).mut(1) = std::string{"Alice"};
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).mut(1) = std::string{"Alice"};
-
-    // base model is changed with set function, other fields are kept
-    BOOST_REQUIRE_EQUAL(vec.size(), 3);
-    BOOST_CHECK_EQUAL(std::as_const(vec)[0].first_name(), "John");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[0].last_name(), "Smith");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name(), "Doe");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[2].first_name(), "Bob");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[2].last_name(), "Brown");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name, "Doe");
 
     std::vector<std::string> expected{"John", "Alice", "Bob"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(std::ranges::cbegin(vec | mv::ranges::transform(get_fn, set_fn)),
-                                  std::ranges::cend(vec | mv::ranges::transform(get_fn, set_fn)),
-                                  expected.begin(), expected.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        std::ranges::cbegin(vec | mv::ranges::ref_transform(get_first_name)),
+        std::ranges::cend(vec | mv::ranges::ref_transform(get_first_name)),
+        expected.begin(), expected.end());
 
-    BOOST_CHECK_EQUAL(before_inserted_count, 0);
-    BOOST_CHECK_EQUAL(after_inserted_count, 0);
-    BOOST_CHECK_EQUAL(before_erased_count, 0);
-    BOOST_CHECK_EQUAL(after_erased_count, 0);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
 }
 
 
-/// Tests transform projection of temporary range model
-BOOST_AUTO_TEST_CASE(transform_temporary_base) {
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-    auto names = mv::vector<test_user>{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}} |
-                 mv::ranges::transform(get_fn, set_fn);
+/// Tests changing object pointed by base model element
+BOOST_AUTO_TEST_CASE(change_unique_ptr) {
+    mv::vector<std::unique_ptr<test_user>> vec;
+    vec.emplace_back(std::make_unique<test_user>("John", "Smith"));
+    vec.emplace_back(std::make_unique<test_user>("Jane", "Doe"));
+
+    auto users = vec | mv::ranges::ref_transform([](auto && p) -> auto & { return *p; });
+
+    int changed_count = 0;
+    users.after_changed.connect([&](size_t idx) {
+        ++changed_count;
+        BOOST_CHECK_EQUAL(idx, 1);
+        BOOST_CHECK_EQUAL(users.cbegin()[idx].first_name(), "Alice");
+    });
+
+    users.mut(1)->set_first_name("Alice");
+
+    BOOST_CHECK_EQUAL(users.cbegin()[0].first_name(), "John");
+    BOOST_CHECK_EQUAL(users.cbegin()[1].first_name(), "Alice");
+    BOOST_CHECK_EQUAL(users.cbegin()[1].last_name(), "Doe");
+    BOOST_CHECK_EQUAL(changed_count, 1);
+}
+
+
+/// Tests nested ref transform projection
+BOOST_AUTO_TEST_CASE(ref_transform_nested) {
+    struct team {
+        user leader;
+        std::string name;
+    };
+
+    mv::vector<team> vec{{{"John", "Smith"}, "red"}, {{"Jane", "Doe"}, "blue"}};
+
+    auto get_leader = [](auto && t) -> auto & { return t.leader; };
+    auto names = vec | mv::ranges::ref_transform(get_leader) |
+                 mv::ranges::ref_transform(get_first_name);
+
+    int changed_count = 0;
+    names.after_changed.connect([&](size_t idx) {
+        ++changed_count;
+        BOOST_CHECK_EQUAL(idx, 1);
+        BOOST_CHECK_EQUAL(names.cbegin()[idx], "Alice");
+    });
+
+    names.mut(1) = std::string{"Alice"};
+
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].leader.first_name, "Alice");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].leader.last_name, "Doe");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].name, "blue");
+    BOOST_CHECK_EQUAL(changed_count, 1);
+}
+
+
+/// Tests ref transform projection of temporary range model
+BOOST_AUTO_TEST_CASE(ref_transform_temporary_base) {
+    auto names = mv::vector<user>{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}} |
+                 mv::ranges::ref_transform(get_first_name);
 
     using names_t = std::decay_t<decltype(names)>;
     static_assert(mv::ranges::model<names_t, std::string>);
@@ -445,12 +472,10 @@ BOOST_AUTO_TEST_CASE(transform_temporary_base) {
 }
 
 
-/// Tests moving transform projection of temporary range model
-BOOST_AUTO_TEST_CASE(transform_temporary_base_move) {
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-    auto names = mv::vector<test_user>{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}} |
-                 mv::ranges::transform(get_fn, set_fn);
+/// Tests moving ref transform projection of temporary range model
+BOOST_AUTO_TEST_CASE(ref_transform_temporary_base_move) {
+    auto names = mv::vector<user>{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}} |
+                 mv::ranges::ref_transform(get_first_name);
     auto names2 = std::move(names);
 
     std::vector<std::string> expected{"John", "Jane", "Bob"};
@@ -471,13 +496,10 @@ BOOST_AUTO_TEST_CASE(transform_temporary_base_move) {
 }
 
 
-/// Tests copying transform projection of range model reference
-BOOST_AUTO_TEST_CASE(transform_ref_base_copy) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-    auto names = vec | mv::ranges::transform(get_fn, set_fn);
+/// Tests copying ref transform projection of range model reference
+BOOST_AUTO_TEST_CASE(ref_transform_ref_base_copy) {
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
     auto names2 = names;
 
     std::vector<std::string> expected{"John", "Jane", "Bob"};
@@ -493,8 +515,8 @@ BOOST_AUTO_TEST_CASE(transform_ref_base_copy) {
     (names2.begin() + 1).mut() = std::string{"Alice"};
 
     // copy changes the same base model
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
-    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name(), "Doe");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name, "Doe");
 
     std::vector<std::string> changed{"John", "Alice", "Bob"};
     BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), changed.begin(), changed.end());
@@ -503,13 +525,43 @@ BOOST_AUTO_TEST_CASE(transform_ref_base_copy) {
 }
 
 
+/// Tests moving ref transform mutator
+BOOST_AUTO_TEST_CASE(ref_transform_mutator_move) {
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
+
+    int changed_count = 0;
+    names.after_changed.connect([&](size_t idx) {
+        ++changed_count;
+        BOOST_CHECK_EQUAL(idx, 1);
+        BOOST_CHECK_EQUAL(names.cbegin()[idx], "Alice");
+    });
+
+    {
+        auto mut = names.mut(1);
+        BOOST_CHECK_EQUAL(mut.ref(), "Jane");
+
+        mut.ref() = "Alice";
+
+        auto mut2 = std::move(mut);
+        BOOST_CHECK_EQUAL(mut2.ref(), "Alice");
+
+        // element is changed in place, signal is not emitted until mutator is destroyed
+        BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
+        BOOST_CHECK_EQUAL(changed_count, 0);
+    }
+
+    // signal is emitted only once by destroyed mutator
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name, "Alice");
+    BOOST_CHECK_EQUAL(changed_count, 1);
+}
+
+
 /// Tests moving elements in base model
 BOOST_AUTO_TEST_CASE(move_base) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"},
-                              {"Alice", "White"}, {"Tom", "Green"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"},
+                         {"Alice", "White"}, {"Tom", "Green"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     static_assert(mv::ranges::observable_with_move<decltype(names)>);
 
@@ -572,12 +624,10 @@ BOOST_AUTO_TEST_CASE(move_base) {
 }
 
 
-/// Tests moving elements in base model after moving transform projection
+/// Tests moving elements in base model after moving ref transform projection
 BOOST_AUTO_TEST_CASE(move_base_after_projection_move) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
 
     int moved_count = 0;
     names.after_moved.connect([&](size_t, size_t, size_t) { ++moved_count; });

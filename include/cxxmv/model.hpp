@@ -10,20 +10,48 @@
 #pragma once
 
 #include "observable.hpp"
+#include <concepts>
 
 
 namespace mv {
 
 
-/// The Model concept describes observable value that can be modified
+/// Mutator concept for model
+template <typename Mutator, typename Value>
+concept mutator = requires(const Mutator & mut) {
+    /// Returns true if mutator is empty
+    { mut.empty() } -> std::convertible_to<bool>;
+
+    /// Getting reference to value
+    { mut.ref() } -> std::convertible_to<Value &>;
+
+    /// Assigning to value by reference
+    { mut.ref() = std::declval<Value>() };
+
+    /// Getting pointer to value
+    { mut.ptr() } -> std::convertible_to<Value *>;
+
+    /// Getting pointer to value for field access
+    { mut.operator->() } -> std::convertible_to<Value *>;
+
+    /// Assigns value of model
+    { mut = std::declval<Value>() };
+};
+
+
+/// Model concept represents observable with mutator access
+template <typename Model>
+concept model = observable<Model> && requires (Model & mdl) {
+    /// Mutator access
+    { mdl.mut() };
+};
+
+
+/// Concept of model representing speicifed type
 template <typename Model, typename Value>
-concept model = observable_as<Model, Value> && requires(Model mdl) {
-
-    /// Assigns value to model
-    { mdl.assign(std::declval<Value>()) };
-
-    /// Assigns value to model
-    //{ *mdl = std::declval<Value>() };
+concept model_of = model<Model> && observable_as<Model, Value> && requires(Model mdl) {
+    /// Model mutator access
+    { mdl.mut() } -> mutator<Value>;
 };
 
 

@@ -32,11 +32,11 @@ using u16string = basic_string<char16_t>;
 using u32string = basic_string<char32_t>;
 
 
-static_assert(model<string, std::string>);
-static_assert(model<wstring, std::wstring>);
-static_assert(model<u8string, std::u8string>);
-static_assert(model<u16string, std::u16string>);
-static_assert(model<u32string, std::u32string>);
+static_assert(model_of<string, std::string>);
+static_assert(model_of<wstring, std::wstring>);
+static_assert(model_of<u8string, std::u8string>);
+static_assert(model_of<u16string, std::u16string>);
+static_assert(model_of<u32string, std::u32string>);
 
 
 }

@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "assign_wrapper.hpp"
 #include "projection.hpp"
 #include "signal_ref.hpp"
 #include <concepts>
@@ -41,15 +40,9 @@ public:
         return get();
     }
 
-    /// Assigns value to model
-    template <typename Arg>
-    void assign(Arg && val) {
-        base_.assign(std::forward<Arg>(val));
-    }
-
-    /// Returns wrapper for assigning value to projection
-    auto operator*() {
-        return assign_wrapper{*this};
+    /// Returns model value mutator
+    auto mut() {
+        return base_.mut();
     }
 
 private:

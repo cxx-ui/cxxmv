@@ -1,3 +1,8 @@
+// Copyright (c) 2026, Alexandr Esilevich
+//
+// Distributed under the Boost Software License.
+// See accompanying file LICENSE for license information.
+//
 
 /// \file vector.hpp
 /// Contains definitin of the vector class.
@@ -17,9 +22,79 @@ namespace mv {
 /// Vector range model
 template <typename T>
 class vector {
+    /// Type of iterator in vector storage
+    using storage_iterator = std::vector<T>::iterator;
+
 public:
     /// Type of const iterator over vector elements
     using const_iterator = std::vector<T>::const_iterator;
+
+    /// Vector element mutator
+    class mutator {
+    public:
+        /// Constructs mutator with specified pointer to vector model and
+        /// iterator in vector storage
+        mutator(vector * vec, storage_iterator it):
+        vec_{vec}, it_{it} {
+            assert(!empty() && "passing null vector to mutator");
+            vec_->emit_before_changed(it_);
+        }
+
+        /// Reference is not copyable
+        mutator(const mutator &) = delete;
+
+        /// Move constructor
+        mutator(mutator && other):
+        vec_{other.vec_},
+        it_{other.it_} {
+            other.vec_ = nullptr;
+        }
+
+        /// Destroys reference, emits changed signal
+        ~mutator() {
+            if (!empty()) {
+                vec_->emit_after_changed(it_);
+            }
+        }
+
+        /// Returns true if reference is empty
+        bool empty() const {
+            return vec_ == nullptr;
+        }
+
+        /// Assigns value to element
+        const mutator & operator=(const T & val) const {
+            assert(!empty() && "assigning to empty mutator");
+            *it_ = val;
+            return *this;
+        }
+
+        /// Assigns value to model with move
+        const mutator & operator=(T && val) const {
+            assert(!empty() && "assigning to empty mutator");
+            *it_ = std::move(val);
+            return *this;
+        }
+
+        /// Assigns value of another reference
+        const mutator & operator=(const mutator & other) const {
+            return *this = other.ref();
+        }
+
+        /// Returns reference to object value
+        T & ref() const { return *it_; }
+
+        /// Returns pointer to object value
+        T * ptr() const { return &ref(); }
+
+        /// Returns pointer to object value
+        T * operator->() const { return ptr(); }
+
+    private:
+        vector * vec_ = nullptr;    ///< Pointer to vector model
+        storage_iterator it_;       ///< Iterator in vector storage
+    };
+
 
     /// Iterator over vector elements
     class iterator {
@@ -27,47 +102,18 @@ public:
         using value_type = T;
         using difference_type = std::ptrdiff_t;
 
-        /// Proxy reference to vector element
-        class reference {
-        public:
-            /// Constructs reference to element with specified storage iterator
-            reference(vector * vec, const_iterator it):
-                vec_{vec}, it_{it} {}
-
-            /// Assigns value to element. Emits changed signals.
-            const reference & operator=(const T & val) const {
-                vec_->set(it_, val);
-                return *this;
-            }
-
-            /// Assigns value to element with move. Emits changed signals.
-            const reference & operator=(T && val) const {
-                vec_->set(it_, std::move(val));
-                return *this;
-            }
-
-            /// Assigns value of another element. Emits changed signals.
-            const reference & operator=(const reference & other) const {
-                return *this = static_cast<const T &>(other);
-            }
-
-            /// Returns const reference to element
-            operator const T & () const { return *it_; }
-
-        private:
-            vector * vec_;              ///< Reference to vector
-            const_iterator it_;         ///< Iterator in vector
-        };
-
         /// Constructs singular iterator
         iterator() = default;
 
         /// Constructs iterator pointing to specified position in vector
-        iterator(vector * vec, const_iterator pos):
+        iterator(vector * vec, storage_iterator pos):
             vec_{vec}, it_{pos} {}
 
-        reference operator*() const { return {vec_, it_}; }
-        reference operator[](difference_type n) const { return {vec_, it_ + n}; }
+        /// Starts mutating element
+        mutator mut() const { return mutator{vec_, it_}; }
+
+        const T & operator*() const { return *it_; }
+        const T & operator[](difference_type n) const { return *it_; }
         const T * operator->() const { return &*it_; }
 
         iterator & operator++() { ++it_; return *this; }
@@ -90,9 +136,10 @@ public:
         operator const_iterator() const { return it_; }
 
     private:
-        vector * vec_ = nullptr;        ///< Pointer to vector
-        const_iterator it_;            ///< Current iterator in vector
+        vector * vec_ = nullptr;        ///< Pointer to storage vector
+        storage_iterator it_;           ///< Iterator in storage vector
     };
+
 
     /// Constructs empty vector
     vector() = default;
@@ -117,10 +164,10 @@ public:
     const_iterator cend() const { return storage_.cend(); }
 
     /// Returns iterator pointing to the first element
-    iterator begin() { return {this, storage_.cbegin()}; }
+    iterator begin() { return {this, storage_.begin()}; }
 
     /// Returns iterator pointing to one past the last element
-    iterator end() { return {this, storage_.cend()}; }
+    iterator end() { return {this, storage_.end()}; }
 
     /// Returns size of vector
     size_t size() const { return storage_.size(); }
@@ -236,19 +283,20 @@ public:
         return storage_.at(idx);
     }
 
-    /// Returns reference wrapper for element. Assignment to it emits changed signals.
-    /// Throws std::out_of_range if index is out of range.
-    iterator::reference at(size_t idx) {
-        if (idx >= size()) {
-            throw std::out_of_range{"mv::vector::at: index out of range"};
-        }
-
-        return {this, storage_.cbegin() + idx};
-    }
-
     /// Returns const reference to element
     const T & operator[](size_t idx) const {
         return storage_[idx];
+    }
+
+    /// Starts mutating element at specified index
+    mutator mut(size_t idx) {
+        return mutator{this, storage_.begin() + idx};
+    }
+
+    /// Starts mutating element pointed by specified iterator
+    mutator mut(const iterator & it) {
+        auto idx = static_cast<size_t>(std::distance(begin(), it));
+        return mut(idx);
     }
 
 
@@ -278,18 +326,30 @@ public:
 
 private:
     /// Assigns value to element
-    void set(const const_iterator & cit, const T & val) {
-        auto idx = std::distance(storage_.cbegin(), cit);
+    void set(const storage_iterator & it, const T & val) {
+        auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = val;
         after_changed(idx);
     }
 
     /// Assigns value to element with move
-    void set(const const_iterator & cit, T && val) {
-        auto idx = std::distance(storage_.cbegin(), cit);
+    void set(const storage_iterator & it, T && val) {
+        auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = std::move(val);
+        after_changed(idx);
+    }
+
+    /// Emits before changed signal for specified element
+    void emit_before_changed(const storage_iterator it) {
+        auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
+        before_changed(idx);
+    }
+
+    /// Emits after changed signal for specified element
+    void emit_after_changed(const storage_iterator it) {
+        auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
         after_changed(idx);
     }
 

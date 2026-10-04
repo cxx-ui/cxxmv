@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(zip_transform_base_changed) {
         BOOST_CHECK_EQUAL(zip.get(), "Dr. last");
     });
 
-    mdl2.assign("Dr.");
+    mdl2.mut().ref() = "Dr.";
 
     BOOST_CHECK_EQUAL(zip.get(), "Dr. last");
 

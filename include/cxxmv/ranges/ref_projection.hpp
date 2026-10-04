@@ -24,6 +24,9 @@ template <typename Base>
 requires observable<Base>
 class ref_projection: public projection_base, public move_signal_refs<Base> {
 public:
+    /// Type of iterator
+    using iterator = std::ranges::iterator_t<Base>;
+
     /// Constructs view with reference to another range
     ref_projection(Base & b):
         move_signal_refs<Base>{b},
@@ -75,6 +78,16 @@ public:
         base_.move(first, last, dest);
     }
 
+    /// Starts mutating of element at specified index
+    auto mut(size_t idx) {
+        return base_.mut(idx);
+    }
+
+    /// Starts mutating of element pointed by specified iterator
+    auto mut(const iterator & it) {
+        return base_.mut(it);
+    }
+
 private:
     Base & base_;           ///< Reference to base observable range
 
@@ -100,3 +113,7 @@ public:
 
 
 }
+
+
+template <typename Base>
+inline constexpr bool std::ranges::enable_borrowed_range<mv::ranges::ref_projection<Base>> = true;

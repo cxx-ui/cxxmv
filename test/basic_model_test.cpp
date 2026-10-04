@@ -13,9 +13,8 @@
 #include <cxxmv/basic_model.hpp>
 
 
-static_assert(mv::model<mv::basic_model<int>, int>);
-static_assert(mv::model<mv::basic_model<long>, int>);
-static_assert(mv::model<mv::basic_model<std::string>, std::string>);
+static_assert(mv::model_of<mv::basic_model<int>, int>);
+static_assert(mv::model_of<mv::basic_model<std::string>, std::string>);
 
 
 namespace {
@@ -48,24 +47,6 @@ BOOST_AUTO_TEST_CASE(ctor_initializer_list) {
 }
 
 
-/// Tests assignment to model
-BOOST_AUTO_TEST_CASE(assign) {
-    mv::basic_model<int> mdl{100};
-
-    bool changed_called = false;
-    mdl.changed.connect([&changed_called, &mdl] {
-        changed_called = true;
-        BOOST_CHECK(*mdl == 200);
-    });
-
-    mdl.assign(200);
-
-    BOOST_CHECK(*mdl == 200);
-
-    BOOST_CHECK(changed_called);
-}
-
-
 /// Tests assignment to model via * operator
 BOOST_AUTO_TEST_CASE(assign_deref) {
     mv::basic_model<int> mdl{100};
@@ -76,11 +57,28 @@ BOOST_AUTO_TEST_CASE(assign_deref) {
         BOOST_CHECK(*mdl == 200);
     });
 
-    *mdl = 200;
+    mdl.mut().ref() = 200;
 
     BOOST_CHECK(*mdl == 200);
 
     BOOST_CHECK(changed_called);
+}
+
+
+/// Tests assignment to model via mutator
+BOOST_AUTO_TEST_CASE(mut_assign) {
+    mv::basic_model<int> mdl{100};
+
+    int changed_count = 0;
+    mdl.changed.connect([&changed_count, &mdl] {
+        ++changed_count;
+        BOOST_CHECK_EQUAL(mdl.get(), 200);
+    });
+
+    mdl.mut() = 200;
+
+    BOOST_CHECK_EQUAL(mdl.get(), 200);
+    BOOST_CHECK_EQUAL(changed_count, 1);
 }
 
 

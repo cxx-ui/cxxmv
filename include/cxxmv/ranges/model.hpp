@@ -10,6 +10,7 @@
 #pragma once
 
 #include "observable.hpp"
+#include "../model.hpp"
 #include <ranges>
 #include <utility>
 
@@ -17,10 +18,17 @@
 namespace mv::ranges {
 
 
+
 /// Range model concept
 template <typename Range, typename Val>
-concept model = observable_as<Range, Val> &&
-                std::ranges::output_range<Range, Val>;
+concept model = observable_as<Range, Val> && requires (Range & mdl, size_t idx) {
+
+    /// Starts mutating element at specified index
+    { mdl.mut(idx) } -> mutator<Val>;
+
+    /// Starts mutating element pointed by specified iterator
+    { mdl.mut(mdl.begin()) } -> mutator<Val>;
+};
 
 
 /// Range model with insert support

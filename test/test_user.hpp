@@ -24,6 +24,9 @@ public:
     void set_first_name(std::string f) { first_name_ = std::move(f); }
     void set_last_name(std::string l) { last_name_ = std::move(l); }
 
+    std::string & first_name() { return first_name_; }
+    std::string & last_name() { return last_name_; }
+
 private:
     std::string first_name_;
     std::string last_name_;

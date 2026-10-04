@@ -36,10 +36,10 @@ public:
                     return;
                 }
 
-                if constexpr (model<Model, std::string>) {
-                    mdl_.assign(this->text().toStdString());
-                } else if constexpr (model<Model, std::wstring>) {
-                    mdl_.assign(this->text().toStdWString());
+                if constexpr (model_of<Model, std::string>) {
+                    mdl_.mut().ref() = this->text().toStdString();
+                } else if constexpr (model_of<Model, std::wstring>) {
+                    mdl_.mut().ref() = this->text().toStdWString();
                 }
 
                 // resulting value in model may be different from value in line edit.

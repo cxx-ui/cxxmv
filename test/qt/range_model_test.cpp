@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(change_base) {
     });
     QObject::connect(&model, &QAbstractItemModel::rowsRemoved, [&] { ++rows_removed_count; });
 
-    users.at(1) = test_user{"Alice", "White"};
+    users.mut(1) = test_user{"Alice", "White"};
 
     BOOST_CHECK_EQUAL(model.rowCount(), 3);
     BOOST_CHECK(model.data(model.index(0, 0)) == "John");

@@ -34,6 +34,9 @@ class owning_projection: public projection_base,
                          private owning_projection_base<Base>,
                          public move_signal_refs<Base> {
 public:
+    /// Type of iterator
+    using iterator = typename Base::iterator;
+
     /// Constructs projection owning specified observable range
     owning_projection(Base && b):
         owning_projection_base<Base>{std::move(b)},
@@ -70,6 +73,16 @@ public:
 
     /// Returns number of elements
     auto size() const { return std::ranges::size(std::as_const(this->base_)); }
+
+    /// Starts mutating of element at specified index
+    auto mut(size_t idx) {
+        return this->base_.mut(idx);
+    }
+
+    /// Starts mutating of element pointed by iterator
+    auto mut(const iterator & it) {
+        return this->base_.mut(it);
+    }
 
     /// The signal is emitted before items added
     signal_ref<decltype(Base::before_inserted)> before_inserted;

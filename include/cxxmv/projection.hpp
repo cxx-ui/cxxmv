@@ -51,10 +51,10 @@ concept projectable_observable_as = projectable_observable<Observable> &&
 
 
 template <typename Projection, typename Value>
-concept model_projection = observable_projection<Projection> && model<Projection, Value>;
+concept model_projection = observable_projection<Projection> && model_of<Projection, Value>;
 
 template <typename Model, typename Value>
-concept projectable_model = projectable_observable<Model> && model<Model, Value>;
+concept projectable_model = projectable_observable<Model> && model_of<Model, Value>;
 
 
 }

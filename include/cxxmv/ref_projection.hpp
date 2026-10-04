@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "assign_wrapper.hpp"
 #include "projection.hpp"
 #include "signal_ref.hpp"
 #include <utility>
@@ -31,6 +30,11 @@ public:
     /// Copy constructor
     ref_projection(const ref_projection & other) = default;
 
+    /// Returns true if mutator is empty
+    bool empty() const {
+        return base_.emtpy();
+    }
+
     /// Reads value from observable
     decltype(auto) get() const {
         return base_.get();
@@ -41,15 +45,9 @@ public:
         return get();
     }
 
-    /// Assigns value to model
-    template <typename Arg>
-    void assign(Arg && val) {
-        base_.assign(std::forward<Arg>(val));
-    }
-
-    /// Returns wrapper for assigning value to projection
-    auto operator*() {
-        return assign_wrapper{*this};
+    /// Returns mutator for model value
+    auto mut() {
+        return base_.mut();
     }
 
     signal_ref<decltype(get_sig_type(std::declval<Base>()))> changed;
@@ -57,6 +55,10 @@ public:
 private:
     Base & base_;           ///< Reference to base observable
 };
+
+
+template <typename Base>
+inline constexpr bool enable_borrowed_observable<ref_projection<Base>> = true;
 
 
 }
