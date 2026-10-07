@@ -29,14 +29,6 @@ concept observable = std::ranges::random_access_range<Range> && requires(const R
 };
 
 
-/// Observable range with support for move operations
-template <typename Range>
-concept observable_with_move = observable<Range> && requires(const Range & obj) {
-    { obj.before_moved } -> Signal<size_t, size_t, size_t>;
-    { obj.after_moved } -> Signal<size_t, size_t, size_t>;
-};
-
-
 /// Concept for observable range values of which can be obtained and used to construct another type
 template <typename Range, typename Val>
 concept observable_as = observable<Range> &&
@@ -46,6 +38,14 @@ concept observable_as = observable<Range> &&
 /// Borrowed observable range is an observable range that can be safely taken/stored by value
 template <typename T>
 concept borrowed_observable = observable<T> && std::ranges::borrowed_range<T>;
+
+
+/// Observable range with support for move operations
+template <typename Range>
+concept observable_with_move = observable<Range> && requires(const Range & obj) {
+    { obj.before_moved } -> Signal<size_t, size_t, size_t>;
+    { obj.after_moved } -> Signal<size_t, size_t, size_t>;
+};
 
 
 }

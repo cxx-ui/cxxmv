@@ -16,8 +16,8 @@ namespace mv {
 
 
 /// Proxu reference to signal
-template <typename Base, typename ... Args>
-requires Signal<Base, Args...>
+template <typename Base>
+requires Signal<Base>
 class signal_ref {
 public:
     signal_ref(Base & b): base_{b} {}

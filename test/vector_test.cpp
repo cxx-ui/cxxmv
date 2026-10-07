@@ -9,6 +9,8 @@
 
 #include "test_user.hpp"
 #include <boost/test/unit_test.hpp>
+#include <cxxmv/model.hpp>
+#include <cxxmv/observable.hpp>
 #include <cxxmv/vector.hpp>
 #include <iterator>
 #include <memory>
@@ -902,6 +904,241 @@ BOOST_AUTO_TEST_CASE(move_noop) {
 
     BOOST_CHECK_EQUAL(before_moved_count, 0);
     BOOST_CHECK_EQUAL(after_moved_count, 0);
+}
+
+
+/// Tests construction of vector element model
+BOOST_AUTO_TEST_CASE(element_ctor) {
+    static_assert(mv::model_of<mv::ranges::element_model<mv::vector<int>>, int>);
+    static_assert(mv::nullable_observable_as<mv::ranges::element_model<mv::vector<int>>, int>);
+
+    mv::vector<int> vec{1, 2, 3};
+
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    BOOST_CHECK(!elem.is_null());
+    BOOST_CHECK_EQUAL(*elem, 2);
+    BOOST_CHECK_EQUAL(elem.get(), 2);
+
+    mv::ranges::element_model<mv::vector<int>> null_elem{vec};
+    BOOST_CHECK(null_elem.is_null());
+}
+
+
+/// Tests updating vector element model index when elements are inserted into vector
+BOOST_AUTO_TEST_CASE(element_insert) {
+    mv::vector<int> vec{1, 2, 3};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+
+    int changed_count = 0;
+    int after_inserted_count = 0;
+
+    elem.changed.connect([&] { ++changed_count; });
+
+    vec.after_inserted.connect([&](size_t, size_t) {
+        ++after_inserted_count;
+        BOOST_CHECK_EQUAL(*elem, 2);
+    });
+
+    vec.insert(vec.cbegin(), 4);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    std::vector<int> vals{5, 6};
+    vec.insert(vec.cbegin() + 2, vals.begin(), vals.end());
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.emplace(vec.cbegin(), 7);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.insert(vec.cend(), 8);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    BOOST_CHECK_EQUAL(after_inserted_count, 4);
+    BOOST_CHECK_EQUAL(changed_count, 0);
+}
+
+
+/// Tests updating vector element model index when elements are erased from vector
+BOOST_AUTO_TEST_CASE(element_erase) {
+    mv::vector<int> vec{1, 2, 3, 4, 5};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 2};
+
+    int changed_count = 0;
+    int after_erased_count = 0;
+
+    elem.changed.connect([&] {
+        ++changed_count;
+        BOOST_CHECK(elem.is_null());
+    });
+
+    vec.after_erased.connect([&](size_t, size_t) {
+        ++after_erased_count;
+        BOOST_CHECK(after_erased_count < 3 || elem.is_null());
+        BOOST_CHECK(elem.is_null() || *elem == 3);
+    });
+
+    vec.erase(vec.cbegin() + 3, vec.cend());
+    BOOST_CHECK_EQUAL(*elem, 3);
+
+    vec.erase(vec.cbegin(), vec.cbegin() + 1);
+    BOOST_CHECK_EQUAL(*elem, 3);
+    BOOST_CHECK_EQUAL(changed_count, 0);
+
+    vec.erase(vec.cbegin(), vec.cbegin() + 2);
+    BOOST_CHECK(elem.is_null());
+    BOOST_CHECK_EQUAL(changed_count, 1);
+
+    vec.insert(vec.cbegin(), 6);
+    vec.clear();
+    BOOST_CHECK(elem.is_null());
+    BOOST_CHECK_EQUAL(changed_count, 1);
+}
+
+
+/// Tests updating vector element model index when elements are moved in vector
+BOOST_AUTO_TEST_CASE(element_move) {
+    mv::vector<int> vec{0, 1, 2, 3, 4, 5};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 2};
+
+    int changed_count = 0;
+    int after_moved_count = 0;
+
+    elem.changed.connect([&] { ++changed_count; });
+
+    vec.after_moved.connect([&](size_t, size_t, size_t) {
+        ++after_moved_count;
+        BOOST_CHECK_EQUAL(*elem, 2);
+    });
+
+    vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin() + 5);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.move(vec.cbegin() + 3, vec.cbegin() + 5, vec.cbegin());
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.move(vec.cbegin(), vec.cbegin() + 1, vec.cbegin() + 4);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.move(vec.cbegin() + 2, vec.cbegin() + 4, vec.cbegin());
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    vec.move(vec.cbegin() + 5, vec.cbegin() + 6, vec.cbegin() + 3);
+    BOOST_CHECK_EQUAL(*elem, 2);
+
+    BOOST_CHECK_EQUAL(after_moved_count, 5);
+    BOOST_CHECK_EQUAL(changed_count, 0);
+}
+
+
+/// Tests changed signal of vector element model when elements are changed in vector
+BOOST_AUTO_TEST_CASE(element_change) {
+    mv::vector<int> vec{1, 2, 3};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+
+    int changed_count = 0;
+    int after_changed_count = 0;
+
+    elem.changed.connect([&] {
+        ++changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count, 2);
+        BOOST_CHECK_EQUAL(*elem, 5);
+    });
+
+    vec.after_changed.connect([&](size_t idx) {
+        ++after_changed_count;
+        BOOST_CHECK(idx != 1 || changed_count == 1);
+    });
+
+    vec.mut(0) = 4;
+    vec.mut(2) = 6;
+    BOOST_CHECK_EQUAL(changed_count, 0);
+
+    vec.mut(1) = 5;
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(*elem, 5);
+}
+
+
+/// Tests mutating vector element through vector element model
+BOOST_AUTO_TEST_CASE(element_mut) {
+    mv::vector<int> vec{1, 2, 3};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+
+    int changed_count = 0;
+    int after_changed_count = 0;
+
+    elem.changed.connect([&] { ++changed_count; });
+
+    vec.after_changed.connect([&](size_t idx) {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(idx, 1);
+    });
+
+    elem.mut() = 5;
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+
+    std::vector<int> expected{1, 5, 3};
+    BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
+}
+
+
+/// Tests moving vector element model
+BOOST_AUTO_TEST_CASE(element_move_ctor) {
+    mv::vector<int> vec{1, 2, 3};
+    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem2{std::move(elem)};
+
+    int changed_count = 0;
+    elem2.changed.connect([&] { ++changed_count; });
+
+    vec.insert(vec.cbegin(), 4);
+    BOOST_CHECK_EQUAL(*elem2, 2);
+
+    vec.mut(2) = 5;
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(*elem2, 5);
+}
+
+
+/// Tests setting index of vector element model
+BOOST_AUTO_TEST_CASE(element_set_index) {
+    mv::vector<int> vec{1, 2, 3};
+    mv::ranges::element_model<mv::vector<int>> elem{vec};
+
+    int changed_count = 0;
+    int expected = 0;
+
+    elem.changed.connect([&] {
+        ++changed_count;
+        BOOST_CHECK(elem.is_null() || *elem == expected);
+    });
+
+    expected = 3;
+    elem.set_index(2);
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK(!elem.is_null());
+    BOOST_CHECK_EQUAL(*elem, 3);
+
+    expected = 1;
+    elem.set_index(0);
+    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(*elem, 1);
+
+    vec.insert(vec.cbegin(), 0);
+    BOOST_CHECK_EQUAL(*elem, 1);
+    BOOST_CHECK_EQUAL(changed_count, 2);
+
+    expected = 10;
+    vec.mut(1) = 10;
+    BOOST_CHECK_EQUAL(changed_count, 3);
+    BOOST_CHECK_EQUAL(*elem, 10);
+
+    elem.set_index(SIZE_MAX);
+    BOOST_CHECK_EQUAL(changed_count, 4);
+    BOOST_CHECK(elem.is_null());
+
+    vec.mut(1) = 20;
+    BOOST_CHECK_EQUAL(changed_count, 4);
 }
 
 

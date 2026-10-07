@@ -14,6 +14,7 @@
 #include "observable.hpp"
 #include "projection.hpp"
 #include "all.hpp"
+#include "signal_ref.hpp"
 #include <concepts>
 #include <type_traits>
 
@@ -101,7 +102,11 @@ public:
         changed{base_.changed} {}
 
     /// Copy constructor
-    transform_projection(const transform_projection &) = default;
+    transform_projection(const transform_projection & other):
+        base_{other.base_},
+        get_fn_{other.get_fn_},
+        set_fn_{other.set_fn_},
+        changed{base_.changed} {}
 
     /// Move constructor
     transform_projection(transform_projection && other):
@@ -120,18 +125,23 @@ public:
         return get();
     }
 
+    /// Returns true if value of base observable is null
+    bool is_null() const requires nullable_observable<Observable> {
+        return base_.is_null();
+    }
+
     /// Returns model value mutator
     auto mut() {
         return transform_mutator{base_.mut(), get_fn_, set_fn_};
     }
 
+    /// The changed signal is emitted after model value changed
+    signal_ref<decltype(Observable::changed)> changed;
+
 private:
     Observable base_;
     GetFn get_fn_;
     SetFn set_fn_;
-
-public:
-    decltype(std::declval<Observable>().changed) changed;
 };
 
 

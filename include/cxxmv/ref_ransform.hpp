@@ -110,6 +110,11 @@ public:
         return get();
     }
 
+    /// Returns true if value of base observable is null
+    bool is_null() const requires nullable_observable<Observable> {
+        return base_.is_null();
+    }
+
     /// Returns mutator for model value
     auto mut() {
         return ref_transform_mutator{base_.mut(), get_ref_fn_};

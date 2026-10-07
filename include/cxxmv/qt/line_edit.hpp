@@ -32,7 +32,7 @@ public:
 
         if constexpr (!is_read_only) {
             this->connect(this, &QLineEdit::textChanged, [this] {
-                if (is_updating_) {
+                if (is_updating_ || mv::is_null(mdl_)) {
                     return;
                 }
 
@@ -63,9 +63,14 @@ private:
         }
     }
 
-    /// Updates line edit value with value from model
+    /// Updates line edit value with value from model, disables line edit if model value is null
     void update_value() {
-        QString s = get_model_val();
+        bool null = mv::is_null(mdl_);
+        if constexpr (nullable_observable<Model>) {
+            setEnabled(!null);
+        }
+
+        QString s = null ? QString{} : get_model_val();
         if (s != text()) {
             is_updating_ = true;
             setText(s);

@@ -40,6 +40,11 @@ public:
         return get();
     }
 
+    /// Returns true if value of base observable is null
+    bool is_null() const requires nullable_observable<Base> {
+        return base_.is_null();
+    }
+
     /// Returns model value mutator
     auto mut() {
         return base_.mut();

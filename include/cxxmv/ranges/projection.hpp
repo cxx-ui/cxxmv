@@ -42,7 +42,7 @@ template <typename Observable>
 concept projectable_observable = observable<Observable> &&
                                  (borrowed_observable<Observable> ||
                                   observable_projection<Observable> ||
-                                  std::movable<std::remove_reference_t<Observable>>);
+                                  std::move_constructible<std::remove_reference_t<Observable>>);
 
 template <typename Observable, typename Value>
 concept projectable_observable_as = projectable_observable<Observable> &&

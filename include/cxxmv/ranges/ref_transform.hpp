@@ -11,10 +11,13 @@
 
 #include "../ref_ransform.hpp"
 #include "all.hpp"
+#include "element_model.hpp"
 #include "model.hpp"
 #include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <concepts>
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <ranges>
@@ -279,6 +282,8 @@ public:
     signal_ref<decltype(Range::after_changed)> after_changed;
 
 private:
+    friend class element_model<ref_transform_projection>;
+
     /// Assigns function stored in optional
     template <typename Fn>
     static void assign_fn(std::optional<Fn> & dst, const std::optional<Fn> & src) {
@@ -294,6 +299,64 @@ private:
 template <projectable_observable Range, typename GetRefFn>
 ref_transform_projection(Range && r, GetRefFn) ->
     ref_transform_projection<all_t<Range>, GetRefFn>;
+
+
+/// Model of element in ref transform projection, defined if element model is defined
+/// for base range
+template <typename Range, typename GetRefFn>
+requires requires { sizeof(element_model<Range>); }
+class element_model<ref_transform_projection<Range, GetRefFn>> {
+public:
+    /// Constructs model of element at specified index in base range of projection
+    element_model(ref_transform_projection<Range, GetRefFn> & proj, size_t idx = SIZE_MAX):
+        base_{proj.base_, idx},
+        get_ref_fn_{proj.get_ref_fn_},
+        changed{base_.changed} {}
+
+    /// Move constructor
+    element_model(element_model && other):
+        base_{std::move(other.base_)},
+        get_ref_fn_{std::move(other.get_ref_fn_)},
+        changed{base_.changed} {}
+
+    /// Returns true if element was removed from base range
+    bool is_null() const {
+        return base_.is_null();
+    }
+
+    /// Reads transformed value of element
+    decltype(auto) get() const {
+        return get_ref_fn_(base_.get());
+    }
+
+    /// Reads transformed value of element
+    decltype(auto) operator*() const {
+        return get();
+    }
+
+    /// Starts mutating of transformed value of element
+    auto mut() {
+        return ref_transform_mutator{base_.mut(), get_ref_fn_};
+    }
+
+    /// Returns index of element in base range or SIZE_MAX if element is null
+    size_t index() const {
+        return base_.index();
+    }
+
+    /// Sets index of element in base range
+    void set_index(size_t idx) {
+        base_.set_index(idx);
+    }
+
+private:
+    element_model<Range> base_;                                   ///< Model of element in base range
+    GetRefFn get_ref_fn_;                                   ///< Get reference function
+
+public:
+    /// The signal is emitted after element is changed
+    signal_ref<decltype(element_model<Range>::changed)> changed;
+};
 
 
 template <typename GetRefFn>

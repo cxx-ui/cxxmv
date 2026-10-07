@@ -10,6 +10,9 @@
 #include "cxxmv/ranges/observable.hpp"
 #include "test_user.hpp"
 #include <boost/test/unit_test.hpp>
+#include <cxxmv/model.hpp>
+#include <cxxmv/observable.hpp>
+#include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/ranges/transform.hpp>
 #include <cxxmv/vector.hpp>
 #include <ranges>
@@ -601,6 +604,154 @@ BOOST_AUTO_TEST_CASE(move_base_after_projection_move) {
     // slot connected before projection move is moved with signal
     BOOST_CHECK_EQUAL(moved_count, 1);
     BOOST_CHECK_EQUAL(moved_count2, 1);
+}
+
+
+/// Tests transform of transformed model
+BOOST_AUTO_TEST_CASE(double_transform) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_name = [](const test_user & u) { return u.first_name(); };
+    auto set_name = [](test_user & u, const std::string & name) { u.set_first_name(name); };
+    auto get_title = [](const std::string & name) { return "Mr. " + name; };
+    auto set_title = [](std::string & name, const std::string & title) {
+        name = title.substr(4);
+    };
+
+    auto titles = vec | mv::ranges::transform(get_name, set_name)
+                      | mv::ranges::transform(get_title, set_title);
+
+    using titles_t = std::decay_t<decltype(titles)>;
+    static_assert(mv::ranges::model<titles_t, std::string>);
+    static_assert(mv::ranges::borrowed_observable<titles_t>);
+
+    std::vector<std::string> expected{"Mr. John", "Mr. Jane", "Mr. Bob"};
+    BOOST_CHECK_EQUAL_COLLECTIONS(titles.cbegin(), titles.cend(),
+                                  expected.begin(), expected.end());
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    titles.before_changed.connect([&](size_t idx) {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count, 0);
+        BOOST_CHECK_EQUAL(idx, 1);
+        BOOST_CHECK_EQUAL(titles.cbegin()[idx], "Mr. Jane");
+    });
+
+    titles.after_changed.connect([&](size_t idx) {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(before_changed_count, 1);
+        BOOST_CHECK_EQUAL(idx, 1);
+        BOOST_CHECK_EQUAL(titles.cbegin()[idx], "Mr. Alice");
+    });
+
+    (titles.begin() + 1).mut() = std::string{"Mr. Alice"};
+
+    BOOST_REQUIRE_EQUAL(vec.size(), 3);
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Alice");
+    BOOST_CHECK_EQUAL(std::as_const(vec)[1].last_name(), "Doe");
+
+    expected = {"Mr. John", "Mr. Alice", "Mr. Bob"};
+    BOOST_CHECK_EQUAL_COLLECTIONS(titles.cbegin(), titles.cend(),
+                                  expected.begin(), expected.end());
+
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests element model of transform projection
+BOOST_AUTO_TEST_CASE(element) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
+    auto names = vec | mv::ranges::transform(get_fn, set_fn);
+
+    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
+
+    static_assert(mv::model_of<element_t, std::string>);
+    static_assert(mv::nullable_observable_as<element_t, std::string>);
+
+    element_t name{names, 1};
+    BOOST_CHECK(!name.is_null());
+    BOOST_CHECK_EQUAL(*name, "Jane");
+
+    int changed_count = 0;
+    name.changed.connect([&changed_count] { ++changed_count; });
+
+    vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
+    BOOST_CHECK_EQUAL(*name, "Jane");
+    BOOST_CHECK_EQUAL(changed_count, 0);
+
+    vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
+    BOOST_CHECK_EQUAL(*name, "Jane");
+    BOOST_CHECK_EQUAL(changed_count, 0);
+
+    name.mut() = std::string{"Alice"};
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(*name, "Alice");
+    BOOST_CHECK_EQUAL(vec[0].first_name(), "Alice");
+    BOOST_CHECK_EQUAL(vec[0].last_name(), "Doe");
+
+    vec.erase(vec.cbegin(), vec.cbegin() + 1);
+    BOOST_CHECK(name.is_null());
+    BOOST_CHECK_EQUAL(changed_count, 2);
+}
+
+
+/// Tests setting index of element model of transform projection
+BOOST_AUTO_TEST_CASE(element_set_index) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    mv::ranges::element_model<std::decay_t<decltype(names)>> name{names};
+    BOOST_CHECK(name.is_null());
+
+    int changed_count = 0;
+    name.changed.connect([&changed_count] { ++changed_count; });
+
+    name.set_index(2);
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(*name, "Bob");
+
+    vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
+    BOOST_CHECK_EQUAL(*name, "Bob");
+    BOOST_CHECK_EQUAL(changed_count, 1);
+
+    name.set_index(SIZE_MAX);
+    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK(name.is_null());
+}
+
+
+/// Tests element model of transform projection without set function
+BOOST_AUTO_TEST_CASE(element_read_only) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
+
+    static_assert(mv::nullable_observable_as<element_t, std::string>);
+    static_assert(!mv::model<element_t>);
+
+    element_t name{names, 1};
+    BOOST_CHECK_EQUAL(*name, "Jane");
+
+    int changed_count = 0;
+    name.changed.connect([&changed_count] { ++changed_count; });
+
+    vec.mut(0) = test_user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(changed_count, 0);
+
+    vec.mut(1) = test_user{"Alice", "White"};
+    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(*name, "Alice");
 }
 
 

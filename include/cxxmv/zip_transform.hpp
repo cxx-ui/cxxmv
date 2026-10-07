@@ -65,6 +65,13 @@ public:
         return get();
     }
 
+    /// Returns true if value of any nullable base observable is null
+    bool is_null() const requires (nullable_observable<Observables> || ...) {
+        return std::apply([](const Observables & ... bases) {
+            return (mv::is_null(bases) || ...);
+        }, bases_);
+    }
+
 private:
     observables_tuple bases_;                   ///< Tuple of base observables
     GetFn get_fn_;                              ///< Get function

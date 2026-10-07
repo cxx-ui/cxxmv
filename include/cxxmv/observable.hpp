@@ -24,7 +24,15 @@ concept observable = requires(const Observable & obj) {
 };
 
 
-/// Observable concept with dereference operator to access value
+/// Nullable observable with method for checking if value is available
+template <typename Observable>
+concept nullable_observable = observable<Observable> && requires (const Observable & obj) {
+    /// Returns true if observable value is null and can't be accessed
+    { obj.is_null() } -> std::convertible_to<bool>;
+};
+
+
+/// Observable concept with dereference operator to access value of specified type
 template <typename Observable, typename Value>
 concept observable_as = observable<Observable> && requires(const Observable & obj) {
     /// Returns value of observable
@@ -35,6 +43,12 @@ concept observable_as = observable<Observable> && requires(const Observable & ob
 };
 
 
+/// Nullable observable of specified value type
+template <typename Observable, typename Value>
+concept nullable_observable_as = observable_as<Observable, Value> &&
+                                 nullable_observable<Observable>;
+
+
 template<typename T>
 inline constexpr bool enable_borrowed_observable = false;
 
@@ -43,6 +57,17 @@ template <typename Observable>
 concept borrowed_observable = observable<Observable> &&
                               (std::is_lvalue_reference_v<Observable> ||
                                enable_borrowed_observable<std::remove_cvref_t<Observable>>);
+
+
+/// Returns true if observable is nullable and it's value is null
+template <observable Observable>
+bool is_null(const Observable & obj) {
+    if constexpr (nullable_observable<Observable>) {
+        return obj.is_null();
+    } else {
+        return false;
+    }
+}
 
 
 }

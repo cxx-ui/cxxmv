@@ -9,10 +9,13 @@
 
 #pragma once
 
+#include "ranges/element_model.hpp"
 #include "ranges/model.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <stdexcept>
+#include <unordered_set>
 #include <vector>
 
 
@@ -28,6 +31,7 @@ class vector {
 public:
     /// Type of const iterator over vector elements
     using const_iterator = std::vector<T>::const_iterator;
+
 
     /// Vector element mutator
     class mutator {
@@ -148,6 +152,18 @@ public:
     vector(const std::initializer_list<T> & vals):
         storage_{vals} {}
 
+    /// Move constructor
+    vector(vector && other):
+    storage_{std::move(other.storage_)} {
+        assert(other.before_inserted.empty() && other.after_inserted.empty() &&
+               other.before_erased.empty() && other.after_erased.empty() &&
+               other.before_changed.empty() && other.after_changed.empty() &&
+               other.before_moved.empty() && other.after_moved.empty() &&
+               "moving vector with signal connections");
+
+        assert(other.elements_.empty() && "moving vector with element models");
+    }
+
     /// Returns true if vector is empty
     bool empty() const { return storage_.empty(); }
 
@@ -183,6 +199,7 @@ public:
         auto sz = std::distance(first, last);
         before_inserted(idx, sz);
         storage_.insert(pos, first, last);
+        update_inserted(idx, sz);
         after_inserted(idx, sz);
     }
 
@@ -191,6 +208,7 @@ public:
         auto idx = std::distance(storage_.cbegin(), pos);
         before_inserted(idx, 1);
         storage_.insert(pos, val);
+        update_inserted(idx, 1);
         after_inserted(idx, 1);
     }
 
@@ -199,6 +217,7 @@ public:
         auto idx = std::distance(storage_.cbegin(), pos);
         before_inserted(idx, 1);
         storage_.insert(pos, std::move(val));
+        update_inserted(idx, 1);
         after_inserted(idx, 1);
     }
 
@@ -218,6 +237,7 @@ public:
         auto idx = std::distance(storage_.cbegin(), pos);
         before_inserted(idx, 1);
         auto res = storage_.emplace(pos, std::forward<Args>(args)...);
+        update_inserted(idx, 1);
         after_inserted(idx, 1);
         return res;
     }
@@ -238,6 +258,7 @@ public:
         auto sz = std::distance(first, last);
         before_erased(idx, sz);
         storage_.erase(first, last);
+        update_erased(idx, sz);
         after_erased(idx, sz);
     }
 
@@ -275,6 +296,7 @@ public:
             std::rotate(storage_first, storage_last, storage_dest);
         }
 
+        update_moved(first_idx, sz, dest_idx);
         after_moved(first_idx, sz, dest_idx);
     }
 
@@ -330,6 +352,7 @@ private:
         auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = val;
+        emit_elements_changed(idx);
         after_changed(idx);
     }
 
@@ -338,6 +361,7 @@ private:
         auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = std::move(val);
+        emit_elements_changed(idx);
         after_changed(idx);
     }
 
@@ -350,10 +374,172 @@ private:
     /// Emits after changed signal for specified element
     void emit_after_changed(const storage_iterator it) {
         auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
+        emit_elements_changed(idx);
         after_changed(idx);
     }
 
+    friend class ranges::element_model<vector>;
+
+    /// Adds element model to vector
+    void add_element(ranges::element_model<vector> * elem) {
+        elements_.insert(elem);
+    }
+
+    /// Removes element model from vector
+    void remove_element(ranges::element_model<vector> * elem) {
+        elements_.erase(elem);
+    }
+
+    /// Updates indexes of element models after inserting elements
+    void update_inserted(size_t idx, size_t count) {
+        for (auto elem : elements_) {
+            if (!elem->is_null() && elem->idx_ >= idx) {
+                elem->update_index(elem->idx_ + count);
+            }
+        }
+    }
+
+    /// Updates indexes of element models after erasing elements
+    void update_erased(size_t idx, size_t count) {
+        for (auto elem : elements_) {
+            if (elem->is_null() || elem->idx_ < idx) {
+                continue;
+            }
+
+            if (elem->idx_ < idx + count) {
+                elem->update_index(SIZE_MAX);
+            } else {
+                elem->update_index(elem->idx_ - count);
+            }
+        }
+    }
+
+    /// Updates indexes of element models after moving elements
+    void update_moved(size_t first, size_t count, size_t dest) {
+        for (auto elem : elements_) {
+            if (elem->is_null()) {
+                continue;
+            }
+
+            size_t idx = elem->idx_;
+            if (idx >= first && idx < first + count) {
+                elem->update_index((dest < first ? dest : dest - count) + (idx - first));
+            } else if (dest < first && idx >= dest && idx < first) {
+                elem->update_index(idx + count);
+            } else if (dest > first && idx >= first + count && idx < dest) {
+                elem->update_index(idx - count);
+            }
+        }
+    }
+
+    /// Emits changed signal for element models of element at specified index
+    void emit_elements_changed(size_t idx) {
+        for (auto elem : elements_) {
+            if (elem->idx_ == idx) {
+                elem->emit_changed();
+            }
+        }
+    }
+
     std::vector<T> storage_;
+    std::unordered_set<ranges::element_model<vector> *> elements_;    ///< Set of element models
+};
+
+
+/// Model of vector element. Automatically updates element index when element
+/// is moved or removed in vector model.
+template <typename T>
+class ranges::element_model<vector<T>> {
+public:
+    /// Constructs model of element at specified index in vector model
+    element_model(vector<T> & vec, size_t idx = SIZE_MAX):
+    vec_{&vec}, idx_{idx} {
+        assert(idx_ == SIZE_MAX || idx_ < vec_->size() && "invalid vector element index");
+        vec_->add_element(this);
+    }
+
+    /// Model is not copyable
+    element_model(const element_model &) = delete;
+
+    /// Move constructor
+    element_model(element_model && other):
+    vec_{other.vec_}, idx_{other.idx_} {
+        assert(other.changed.empty() && "moving model with signal connections");
+
+        vec_->remove_element(&other);
+        vec_->add_element(this);
+        other.vec_ = nullptr;
+    }
+
+    /// Model is not copy-assignable
+    element_model & operator=(const element_model &) = delete;
+
+    /// Model is not move-assignable
+    element_model & operator=(element_model &) = delete;
+
+    /// Destroys model, removes it from vector
+    ~element_model() {
+        if (vec_) {
+            vec_->remove_element(this);
+        }
+    }
+
+    /// Returns true if element was removed from vector
+    bool is_null() const {
+        return idx_ == SIZE_MAX;
+    }
+
+    /// Reads value of element
+    const T & get() const {
+        assert(!is_null() && "reading null vector element");
+        return (*vec_)[idx_];
+    }
+
+    /// Reads value of element
+    const T & operator*() const {
+        return get();
+    }
+
+    /// Starts mutating of element
+    auto mut() {
+        assert(!is_null() && "mutating null vector element");
+        return vec_->mut(idx_);
+    }
+
+    /// Returns index of element in vector or SIZE_MAX if element is null
+    size_t index() const {
+        return idx_;
+    }
+
+    /// Sets index of element in vector. Emits changed signal.
+    void set_index(size_t idx) {
+        assert((idx == SIZE_MAX || idx < vec_->size()) && "invalid vector element index");
+        idx_ = idx;
+        changed();
+    }
+
+    /// The signal is emitted after element is changed
+    mutable signal<void ()> changed;
+
+private:
+    friend class vector<T>;
+
+    /// Sets current element index, emits changed signal if element becomes null or not null
+    void update_index(size_t idx) {
+        bool was_null = is_null();
+        idx_ = idx;
+        if (was_null != is_null()) {
+            changed();
+        }
+    }
+
+    /// Emits changed signal
+    void emit_changed() {
+        changed();
+    }
+
+    vector<T> * vec_ = nullptr;         ///< Pointer to vector model
+    size_t idx_ = SIZE_MAX;             ///< Current vector element index
 };
 
 

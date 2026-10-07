@@ -10,9 +10,12 @@
 #pragma once
 
 #include "../signal_ref.hpp"
+#include "element_model.hpp"
 #include "model.hpp"
 #include "move_signal_refs.hpp"
 #include "projection.hpp"
+#include <cstddef>
+#include <cstdint>
 #include <ranges>
 #include <utility>
 
@@ -89,6 +92,8 @@ public:
     }
 
 private:
+    friend class element_model<ref_projection>;
+
     Base & base_;           ///< Reference to base observable range
 
 public:
@@ -109,6 +114,17 @@ public:
 
     /// The signal is emitted after item is changed
     signal_ref<decltype(Base::after_changed)> after_changed;
+};
+
+
+/// Model of element in ref projection, defined if element model is defined for base range
+template <typename Base>
+requires requires { sizeof(element_model<Base>); }
+class element_model<ref_projection<Base>>: public element_model<Base> {
+public:
+    /// Constructs model of element at specified index in base range of projection
+    element_model(ref_projection<Base> & proj, size_t idx = SIZE_MAX):
+        element_model<Base>{proj.base_, idx} {}
 };
 
 

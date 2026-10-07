@@ -10,9 +10,12 @@
 #pragma once
 
 #include "../signal_ref.hpp"
+#include "element_model.hpp"
 #include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <concepts>
+#include <cstddef>
+#include <cstdint>
 #include <ranges>
 #include <utility>
 
@@ -29,7 +32,7 @@ struct owning_projection_base {
 
 /// Projection that owns range passed to it
 template <typename Base>
-requires observable<Base> && std::movable<Base>
+requires observable<Base> && std::move_constructible<Base>
 class owning_projection: public projection_base,
                          private owning_projection_base<Base>,
                          public move_signal_refs<Base> {
@@ -101,6 +104,20 @@ public:
 
     /// The signal is emitted after item is changed
     signal_ref<decltype(Base::after_changed)> after_changed;
+
+private:
+    friend class element_model<owning_projection>;
+};
+
+
+/// Model of element in owning projection, defined if element model is defined for base range
+template <typename Base>
+requires requires { sizeof(element_model<Base>); }
+class element_model<owning_projection<Base>>: public element_model<Base> {
+public:
+    /// Constructs model of element at specified index in base range of projection
+    element_model(owning_projection<Base> & proj, size_t idx = SIZE_MAX):
+        element_model<Base>{proj.base_, idx} {}
 };
 
 
