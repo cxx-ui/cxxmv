@@ -14,7 +14,6 @@
 #include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
-#include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <concepts>
 #include <cstddef>
@@ -43,8 +42,7 @@ template <
     std::copy_constructible SetFn = empty_set_fn
 >
 class transform_projection: public projection_base,
-                            private transform_projection_base<Range>,
-                            public move_signal_refs<Range> {
+                            private transform_projection_base<Range> {
     /// Type of const iterator over base range elements
     using base_const_iterator = std::ranges::iterator_t<const Range>;
 
@@ -185,41 +183,20 @@ public:
     /// Constructs transform projection with specified base range, get and set functions
     transform_projection(Range b, GetFn gf, SetFn sf = {}):
         transform_projection_base<Range>{std::move(b)},
-        move_signal_refs<Range>{this->base_},
         get_fn_{std::move(gf)},
-        set_fn_{std::move(sf)},
-        before_inserted{this->base_.before_inserted},
-        after_inserted{this->base_.after_inserted},
-        before_erased{this->base_.before_erased},
-        after_erased{this->base_.after_erased},
-        before_changed{this->base_.before_changed},
-        after_changed{this->base_.after_changed} {}
+        set_fn_{std::move(sf)} {}
 
     /// Copy constructor
     transform_projection(const transform_projection & other):
         transform_projection_base<Range>{other.base_},
-        move_signal_refs<Range>{this->base_},
         get_fn_{other.get_fn_},
-        set_fn_{other.set_fn_},
-        before_inserted{this->base_.before_inserted},
-        after_inserted{this->base_.after_inserted},
-        before_erased{this->base_.before_erased},
-        after_erased{this->base_.after_erased},
-        before_changed{this->base_.before_changed},
-        after_changed{this->base_.after_changed} {}
+        set_fn_{other.set_fn_} {}
 
     /// Move constructor
     transform_projection(transform_projection && other):
         transform_projection_base<Range>{std::move(other.base_)},
-        move_signal_refs<Range>{this->base_},
         get_fn_{std::move(other.get_fn_)},
-        set_fn_{std::move(other.set_fn_)},
-        before_inserted{this->base_.before_inserted},
-        after_inserted{this->base_.after_inserted},
-        before_erased{this->base_.before_erased},
-        after_erased{this->base_.after_erased},
-        before_changed{this->base_.before_changed},
-        after_changed{this->base_.after_changed} {}
+        set_fn_{std::move(other.set_fn_)} {}
 
     /// Returns const iterator pointing to the first transformed element
     const_iterator begin() const {
@@ -266,28 +243,37 @@ public:
         return this->base_.handle(idx);
     }
 
+    /// Returns signal of base range emitted before items added
+    decltype(auto) before_inserted() const { return this->base_.before_inserted(); }
+
+    /// Returns signal of base range emitted after items added
+    decltype(auto) after_inserted() const { return this->base_.after_inserted(); }
+
+    /// Returns signal of base range emitted before items removed
+    decltype(auto) before_erased() const { return this->base_.before_erased(); }
+
+    /// Returns signal of base range emitted after items removed
+    decltype(auto) after_erased() const { return this->base_.after_erased(); }
+
+    /// Returns signal of base range emitted before item is changed
+    decltype(auto) before_changed() const { return this->base_.before_changed(); }
+
+    /// Returns signal of base range emitted after item is changed
+    decltype(auto) after_changed() const { return this->base_.after_changed(); }
+
+    /// Returns signal of base range emitted before items moved
+    decltype(auto) before_moved() const requires observable_with_move<Range> {
+        return this->base_.before_moved();
+    }
+
+    /// Returns signal of base range emitted after items moved
+    decltype(auto) after_moved() const requires observable_with_move<Range> {
+        return this->base_.after_moved();
+    }
+
 private:
     GetFn get_fn_;                                      ///< Get function
     SetFn set_fn_;                                      ///< Set function
-
-public:
-    /// The signal is emitted before items added
-    signal_ref<decltype(Range::before_inserted)> before_inserted;
-
-    /// The signal is emitted after items added
-    signal_ref<decltype(Range::after_inserted)> after_inserted;
-
-    /// The signal is emitted before items removed
-    signal_ref<decltype(Range::before_erased)> before_erased;
-
-    /// The signal is emitted after items removed
-    signal_ref<decltype(Range::after_erased)> after_erased;
-
-    /// The signal is emitted before item is changed
-    signal_ref<decltype(Range::before_changed)> before_changed;
-
-    /// The signal is emitted after item is changed
-    signal_ref<decltype(Range::after_changed)> after_changed;
 
 private:
     friend class element_model<transform_projection>;
@@ -328,15 +314,10 @@ public:
                   const handle_type & handle = {}):
         base_{handle},
         get_fn_{proj.get_fn_},
-        set_fn_{proj.set_fn_},
-        changed{base_.changed} {}
+        set_fn_{proj.set_fn_} {}
 
     /// Move constructor
-    element_model(element_model && other):
-        base_{std::move(other.base_)},
-        get_fn_{std::move(other.get_fn_)},
-        set_fn_{std::move(other.set_fn_)},
-        changed{base_.changed} {}
+    element_model(element_model && other) = default;
 
     /// Returns true if element was removed from base range
     bool is_null() const {
@@ -368,14 +349,15 @@ public:
         base_.set(handle);
     }
 
+    /// Returns changed signal of element model in base range
+    decltype(auto) changed() const {
+        return base_.changed();
+    }
+
 private:
     element_model<Range> base_;                 ///< Model of element in base range
     GetFn get_fn_;                              ///< Get function
     SetFn set_fn_;                              ///< Set function
-
-public:
-    /// The signal is emitted after element is changed
-    signal_ref<decltype(element_model<Range>::changed)> changed;
 };
 
 

@@ -39,35 +39,35 @@ public:
     range_model(Range rng, QObject * parent = nullptr):
     QAbstractItemModel{parent},
     rng_{std::move(rng)} {
-        before_inserted_con_ = rng_.before_inserted.connect([this](size_t idx, size_t count) {
+        before_inserted_con_ = rng_.before_inserted().connect([this](size_t idx, size_t count) {
             assert(count > 0 && "inserted count should not be 0");
             int row = static_cast<int>(idx);
             beginInsertRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
         });
 
-        after_inserted_con_ = rng_.after_inserted.connect([this](size_t, size_t count) {
+        after_inserted_con_ = rng_.after_inserted().connect([this](size_t, size_t count) {
             assert(count > 0 && "inserted count should not be 0");
             endInsertRows();
         });
 
-        before_erased_con_ = rng_.before_erased.connect([this](size_t idx, size_t count) {
+        before_erased_con_ = rng_.before_erased().connect([this](size_t idx, size_t count) {
             assert(count > 0 && "erased count should not be 0");
             int row = static_cast<int>(idx);
             beginRemoveRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
         });
 
-        after_erased_con_ = rng_.after_erased.connect([this](size_t, size_t count) {
+        after_erased_con_ = rng_.after_erased().connect([this](size_t, size_t count) {
             assert(count > 0 && "erased count should not be 0");
             endRemoveRows();
         });
 
-        after_changed_con_ = rng_.after_changed.connect([this](size_t idx) {
+        after_changed_con_ = rng_.after_changed().connect([this](size_t idx) {
             int row = static_cast<int>(idx);
             emit dataChanged(index(row, 0), index(row, columnCount() - 1));
         });
 
         if constexpr (ranges::observable_with_move<Range>) {
-            before_moved_con_ = rng_.before_moved.connect(
+            before_moved_con_ = rng_.before_moved().connect(
             [this](size_t first_idx, size_t count, size_t dest_idx) {
                 assert(count > 0 && "moved count should not be 0");
                 int row = static_cast<int>(first_idx);
@@ -78,7 +78,7 @@ public:
                 assert(res && "invalid move");
             });
 
-            after_moved_con_ = rng_.after_moved.connect([this](size_t, size_t count, size_t) {
+            after_moved_con_ = rng_.after_moved().connect([this](size_t, size_t count, size_t) {
                 assert(count > 0 && "moved count should not be 0");
                 endMoveRows();
             });

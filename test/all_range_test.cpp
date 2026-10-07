@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model) {
                                   expected.begin(), expected.end());
 
     bool changed_called = false;
-    vec2.after_changed.connect([&changed_called, &vec, &vec2](size_t idx) {
+    vec2.after_changed().connect([&changed_called, &vec, &vec2](size_t idx) {
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(vec[1], 20);
@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(all_ref_borrowed) {
     auto vec2 = vec | mv::ranges::all;
 
     bool changed_called = false;
-    (vec | mv::ranges::all).after_changed.connect([&changed_called, &vec, &vec2](size_t idx) {
+    (vec | mv::ranges::all).after_changed().connect([&changed_called, &vec, &vec2](size_t idx) {
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(vec[1], 20);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model) {
                                   expected.begin(), expected.end());
 
     bool changed_called = false;
-    vec.after_changed.connect([&changed_called, &vec](size_t idx) {
+    vec.after_changed().connect([&changed_called, &vec](size_t idx) {
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(std::as_const(vec).begin()[1], 20);
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element) {
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
-    elem.changed.connect([&changed_count] { ++changed_count; });
+    elem.changed().connect([&changed_count] { ++changed_count; });
 
     vec.insert(vec.cbegin(), 0);
     BOOST_CHECK_EQUAL(*elem, 2);
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
-    elem.changed.connect([&changed_count] { ++changed_count; });
+    elem.changed().connect([&changed_count] { ++changed_count; });
 
     vec.mut(0) = 10;
     BOOST_CHECK_EQUAL(changed_count, 0);
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     BOOST_CHECK(elem.is_null());
 
     int changed_count = 0;
-    elem.changed.connect([&changed_count] { ++changed_count; });
+    elem.changed().connect([&changed_count] { ++changed_count; });
 
     elem.set(vec.handle(2));
     BOOST_CHECK_EQUAL(changed_count, 1);

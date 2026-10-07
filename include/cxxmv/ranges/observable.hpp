@@ -20,12 +20,12 @@ namespace mv::ranges {
 /// Observable range concept
 template <typename Range>
 concept observable = std::ranges::random_access_range<Range> && requires(const Range & obj) {
-    { obj.before_inserted } -> Signal<size_t, size_t>;
-    { obj.after_inserted } -> Signal<size_t, size_t>;
-    { obj.before_erased } -> Signal<size_t, size_t>;
-    { obj.after_erased } -> Signal<size_t, size_t>;
-    { obj.before_changed } -> Signal<size_t>;
-    { obj.after_changed } -> Signal<size_t>;
+    { obj.before_inserted() } -> Signal<size_t, size_t>;
+    { obj.after_inserted() } -> Signal<size_t, size_t>;
+    { obj.before_erased() } -> Signal<size_t, size_t>;
+    { obj.after_erased() } -> Signal<size_t, size_t>;
+    { obj.before_changed() } -> Signal<size_t>;
+    { obj.after_changed() } -> Signal<size_t>;
 };
 
 
@@ -43,8 +43,8 @@ concept borrowed_observable = observable<T> && std::ranges::borrowed_range<T>;
 /// Observable range with support for move operations
 template <typename Range>
 concept observable_with_move = observable<Range> && requires(const Range & obj) {
-    { obj.before_moved } -> Signal<size_t, size_t, size_t>;
-    { obj.after_moved } -> Signal<size_t, size_t, size_t>;
+    { obj.before_moved() } -> Signal<size_t, size_t, size_t>;
+    { obj.after_moved() } -> Signal<size_t, size_t, size_t>;
 };
 
 

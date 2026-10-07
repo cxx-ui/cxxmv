@@ -88,17 +88,13 @@ class ref_transform_projection: public projection_base {
 public:
     /// Constructs transform projection with specified get and set functions
     ref_transform_projection(Observable b, GetRefFn gf):
-        base_{std::move(b)}, get_ref_fn_{std::move(gf)},
-        changed{base_.changed} {}
+        base_{std::move(b)}, get_ref_fn_{std::move(gf)} {}
 
     /// Copy constructor
     ref_transform_projection(const ref_transform_projection &) = default;
 
     /// Move constructor
-    ref_transform_projection(ref_transform_projection && other):
-        base_{std::move(other.base_)},
-        get_ref_fn_{std::move(other.get_ref_fn_)},
-        changed{base_.changed} {}
+    ref_transform_projection(ref_transform_projection && other) = default;
 
     /// Returns transformed value
     decltype(auto) get() const {
@@ -120,12 +116,14 @@ public:
         return ref_transform_mutator{base_.mut(), get_ref_fn_};
     }
 
+    /// Returns changed signal of base observable
+    decltype(auto) changed() const {
+        return base_.changed();
+    }
+
 private:
     Observable base_;
     GetRefFn get_ref_fn_;
-
-public:
-    decltype(std::declval<Observable>().changed) changed;
 };
 
 

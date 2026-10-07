@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(zip_transform_base_changed) {
     mv::zip_transform_projection zip{get_fn, mdl1 | mv::all, mdl2 | mv::all};
 
     bool changed_called = false;
-    zip.changed.connect([&changed_called, &zip] {
+    zip.changed().connect([&changed_called, &zip] {
         changed_called = true;
         BOOST_CHECK_EQUAL(zip.get(), "Dr. last");
     });

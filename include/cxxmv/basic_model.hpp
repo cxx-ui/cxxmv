@@ -40,7 +40,7 @@ public:
         /// Destroys mutator, emits changed signal
         ~mutator() {
             if (!empty()) {
-                mdl_->changed();
+                mdl_->changed_();
             }
         }
 
@@ -82,9 +82,6 @@ public:
     };
 
 
-    /// The changed signal is emitted after value is changed in the model
-    mutable signal<void()> changed;
-
     /// Constructs model with stored value constructed from specified arguments
     template <typename ... Args>
     requires (std::constructible_from<Value, Args...>)
@@ -117,8 +114,14 @@ public:
         return mutator{this};
     }
 
+    /// Returns signal emitted after value is changed in the model
+    signal<void ()> & changed() const {
+        return changed_;
+    }
+
 private:
-    Value value_;           ///< Stored value
+    Value value_;                       ///< Stored value
+    mutable signal<void ()> changed_;   ///< Changed signal
 };
 
 

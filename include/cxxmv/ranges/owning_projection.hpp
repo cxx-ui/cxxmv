@@ -9,10 +9,8 @@
 
 #pragma once
 
-#include "../signal_ref.hpp"
 #include "element_handle.hpp"
 #include "element_model.hpp"
-#include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <concepts>
 #include <cstddef>
@@ -35,33 +33,18 @@ struct owning_projection_base {
 template <typename Base>
 requires observable<Base> && std::move_constructible<Base>
 class owning_projection: public projection_base,
-                         private owning_projection_base<Base>,
-                         public move_signal_refs<Base> {
+                         private owning_projection_base<Base> {
 public:
     /// Type of iterator
     using iterator = typename Base::iterator;
 
     /// Constructs projection owning specified observable range
     owning_projection(Base && b):
-        owning_projection_base<Base>{std::move(b)},
-        move_signal_refs<Base>{this->base_},
-        before_inserted{this->base_.before_inserted},
-        after_inserted{this->base_.after_inserted},
-        before_erased{this->base_.before_erased},
-        after_erased{this->base_.after_erased},
-        before_changed{this->base_.before_changed},
-        after_changed{this->base_.after_changed} {}
+        owning_projection_base<Base>{std::move(b)} {}
 
     /// Move constructor
     owning_projection(owning_projection && other):
-        owning_projection_base<Base>{std::move(other.base_)},
-        move_signal_refs<Base>{this->base_},
-        before_inserted{this->base_.before_inserted},
-        after_inserted{this->base_.after_inserted},
-        before_erased{this->base_.before_erased},
-        after_erased{this->base_.after_erased},
-        before_changed{this->base_.before_changed},
-        after_changed{this->base_.after_changed} {}
+        owning_projection_base<Base>{std::move(other.base_)} {}
 
     /// Returns const iterator pointing to the first element
     auto begin() const { return std::ranges::begin(std::as_const(this->base_)); }
@@ -93,23 +76,33 @@ public:
         return this->base_.handle(idx);
     }
 
-    /// The signal is emitted before items added
-    signal_ref<decltype(Base::before_inserted)> before_inserted;
+    /// Returns signal of base range emitted before items added
+    decltype(auto) before_inserted() const { return this->base_.before_inserted(); }
 
-    /// The signal is emitted after items added
-    signal_ref<decltype(Base::after_inserted)> after_inserted;
+    /// Returns signal of base range emitted after items added
+    decltype(auto) after_inserted() const { return this->base_.after_inserted(); }
 
-    /// The signal is emitted before items removed
-    signal_ref<decltype(Base::before_erased)> before_erased;
+    /// Returns signal of base range emitted before items removed
+    decltype(auto) before_erased() const { return this->base_.before_erased(); }
 
-    /// The signal is emitted after items removed
-    signal_ref<decltype(Base::after_erased)> after_erased;
+    /// Returns signal of base range emitted after items removed
+    decltype(auto) after_erased() const { return this->base_.after_erased(); }
 
-    /// The signal is emitted before item is changed
-    signal_ref<decltype(Base::before_changed)> before_changed;
+    /// Returns signal of base range emitted before item is changed
+    decltype(auto) before_changed() const { return this->base_.before_changed(); }
 
-    /// The signal is emitted after item is changed
-    signal_ref<decltype(Base::after_changed)> after_changed;
+    /// Returns signal of base range emitted after item is changed
+    decltype(auto) after_changed() const { return this->base_.after_changed(); }
+
+    /// Returns signal of base range emitted before items moved
+    decltype(auto) before_moved() const requires observable_with_move<Base> {
+        return this->base_.before_moved();
+    }
+
+    /// Returns signal of base range emitted after items moved
+    decltype(auto) after_moved() const requires observable_with_move<Base> {
+        return this->base_.after_moved();
+    }
 
 private:
     friend class element_model<owning_projection>;

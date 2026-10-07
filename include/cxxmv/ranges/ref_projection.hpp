@@ -9,11 +9,9 @@
 
 #pragma once
 
-#include "../signal_ref.hpp"
 #include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
-#include "move_signal_refs.hpp"
 #include "projection.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -26,21 +24,14 @@ namespace mv::ranges {
 
 template <typename Base>
 requires observable<Base>
-class ref_projection: public projection_base, public move_signal_refs<Base> {
+class ref_projection: public projection_base {
 public:
     /// Type of iterator
     using iterator = std::ranges::iterator_t<Base>;
 
     /// Constructs view with reference to another range
     ref_projection(Base & b):
-        move_signal_refs<Base>{b},
-        base_{b},
-        before_inserted{b.before_inserted},
-        after_inserted{b.after_inserted},
-        before_erased{b.before_erased},
-        after_erased{b.after_erased},
-        before_changed{b.before_changed},
-        after_changed{b.after_changed} {}
+        base_{b} {}
 
     /// Copy constructor
     ref_projection(const ref_projection & other) = default;
@@ -97,29 +88,38 @@ public:
         return base_.handle(idx);
     }
 
+    /// Returns signal of base range emitted before items added
+    decltype(auto) before_inserted() const { return base_.before_inserted(); }
+
+    /// Returns signal of base range emitted after items added
+    decltype(auto) after_inserted() const { return base_.after_inserted(); }
+
+    /// Returns signal of base range emitted before items removed
+    decltype(auto) before_erased() const { return base_.before_erased(); }
+
+    /// Returns signal of base range emitted after items removed
+    decltype(auto) after_erased() const { return base_.after_erased(); }
+
+    /// Returns signal of base range emitted before item is changed
+    decltype(auto) before_changed() const { return base_.before_changed(); }
+
+    /// Returns signal of base range emitted after item is changed
+    decltype(auto) after_changed() const { return base_.after_changed(); }
+
+    /// Returns signal of base range emitted before items moved
+    decltype(auto) before_moved() const requires observable_with_move<Base> {
+        return base_.before_moved();
+    }
+
+    /// Returns signal of base range emitted after items moved
+    decltype(auto) after_moved() const requires observable_with_move<Base> {
+        return base_.after_moved();
+    }
+
 private:
     friend class element_model<ref_projection>;
 
     Base & base_;           ///< Reference to base observable range
-
-public:
-    /// The signal is emitted before items added
-    signal_ref<decltype(Base::before_inserted)> before_inserted;
-
-    /// The signal is emitted after items added
-    signal_ref<decltype(Base::after_inserted)> after_inserted;
-
-    /// The signal is emitted before items removed
-    signal_ref<decltype(Base::before_erased)> before_erased;
-
-    /// The signal is emitted after items removed
-    signal_ref<decltype(Base::after_erased)> after_erased;
-
-    /// The signal is emitted before item is changed
-    signal_ref<decltype(Base::before_changed)> before_changed;
-
-    /// The signal is emitted after item is changed
-    signal_ref<decltype(Base::after_changed)> after_changed;
 };
 
 

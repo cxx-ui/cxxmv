@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(assign_deref) {
     mv::basic_model<int> mdl{100};
 
     bool changed_called = false;
-    mdl.changed.connect([&changed_called, &mdl] {
+    mdl.changed().connect([&changed_called, &mdl] {
         changed_called = true;
         BOOST_CHECK(*mdl == 200);
     });
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(mut_assign) {
     mv::basic_model<int> mdl{100};
 
     int changed_count = 0;
-    mdl.changed.connect([&changed_count, &mdl] {
+    mdl.changed().connect([&changed_count, &mdl] {
         ++changed_count;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
     });

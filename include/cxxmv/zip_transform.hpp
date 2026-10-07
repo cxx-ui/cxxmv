@@ -12,7 +12,6 @@
 #include "all.hpp"
 #include "observable.hpp"
 #include "projection.hpp"
-#include "signal_ref.hpp"
 #include "signals.hpp"
 #include <array>
 #include <memory>
@@ -43,13 +42,12 @@ public:
     zip_transform_projection(GetFn gf, Observables ... bases):
     bases_{std::move(bases)...},
     get_fn_{std::move(gf)},
-    state_{std::make_shared<shared_state_t>()},
-    changed{state_->changed} {
+    state_{std::make_shared<shared_state_t>()} {
         // connecting to changes signals of all base observables. Slots capture raw pointer
         // to state because connections are owned by state and can't outlive it.
         std::apply([state = state_.get()](Observables & ... bases) {
             std::size_t idx = 0;
-            ((state->con[idx++] = bases.changed.connect([state] { state->changed(); })), ...);
+            ((state->con[idx++] = bases.changed().connect([state] { state->changed(); })), ...);
         }, bases_);
     }
 
@@ -72,14 +70,15 @@ public:
         }, bases_);
     }
 
+    /// Returns signal emitted after any of base observables is changed
+    signal<void ()> & changed() const {
+        return state_->changed;
+    }
+
 private:
     observables_tuple bases_;                   ///< Tuple of base observables
     GetFn get_fn_;                              ///< Get function
     std::shared_ptr<shared_state_t> state_;     ///< State shared by all copies
-
-public:
-    /// The changed signal is emitted after model is changed
-    signal_ref<signal<void ()>> changed;
 };
 
 

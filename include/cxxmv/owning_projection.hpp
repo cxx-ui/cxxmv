@@ -10,7 +10,6 @@
 #pragma once
 
 #include "projection.hpp"
-#include "signal_ref.hpp"
 #include <concepts>
 #include <utility>
 
@@ -24,11 +23,11 @@ class owning_projection: public projection_base {
 public:
     /// Constructs projection owning specified observable
     owning_projection(Base && b):
-        base_{std::move(b)}, changed{base_.changed} {}
+        base_{std::move(b)} {}
 
     /// Move constructor
     owning_projection(owning_projection && other):
-        base_{std::move(other.base_)}, changed{base_.changed} {}
+        base_{std::move(other.base_)} {}
 
     /// Reads value from observable
     decltype(auto) get() const {
@@ -50,11 +49,13 @@ public:
         return base_.mut();
     }
 
+    /// Returns changed signal of base observable
+    decltype(auto) changed() const {
+        return base_.changed();
+    }
+
 private:
     Base base_;             ///< Base observable
-
-public:
-    signal_ref<decltype(Base::changed)> changed;
 };
 
 

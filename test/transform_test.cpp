@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(transform_int_float) {
     static_assert(std::copy_constructible<transform_t>);
 
     bool changed_called = false;
-    mdl2.changed.connect([&changed_called, &mdl, &mdl2] {
+    mdl2.changed().connect([&changed_called, &mdl, &mdl2] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
         BOOST_CHECK_EQUAL(mdl2.get(), 200.0f);
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(transform_assign) {
     auto mdl2 = mdl | mv::transform(get_fn, set_fn);
 
     bool changed_called = false;
-    mdl2.changed.connect([&changed_called, &mdl, &mdl2] {
+    mdl2.changed().connect([&changed_called, &mdl, &mdl2] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl->first_name(), "first");
         BOOST_CHECK_EQUAL(mdl->last_name(), "new last");
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(transform_temporary_model) {
     BOOST_CHECK_EQUAL(mdl.get(), 11);
 
     bool changed_called = false;
-    mdl.changed.connect([&changed_called, &mdl] {
+    mdl.changed().connect([&changed_called, &mdl] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 21);
     });
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(transform_temporary_model_move) {
     BOOST_CHECK_EQUAL(mdl2.get(), 11);
 
     bool changed_called = false;
-    mdl2.changed.connect([&changed_called, &mdl2] {
+    mdl2.changed().connect([&changed_called, &mdl2] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl2.get(), 21);
     });
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(transform_ref_model_copy) {
     BOOST_CHECK_EQUAL(mdl3.get(), 11);
 
     bool changed_called = false;
-    mdl3.changed.connect([&changed_called, &mdl, &mdl2, &mdl3] {
+    mdl3.changed().connect([&changed_called, &mdl, &mdl2, &mdl3] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 20);
         BOOST_CHECK_EQUAL(mdl2.get(), 21);
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(transform_mutator_move) {
     auto mdl2 = mdl | mv::transform(get_fn, set_fn);
 
     int changed_count = 0;
-    mdl2.changed.connect([&changed_count, &mdl, &mdl2] {
+    mdl2.changed().connect([&changed_count, &mdl, &mdl2] {
         ++changed_count;
         BOOST_CHECK_EQUAL(mdl.get(), 20);
         BOOST_CHECK_EQUAL(mdl2.get(), 21);

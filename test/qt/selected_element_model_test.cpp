@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(change_current_row) {
 
     int changed_count = 0;
 
-    elem.changed.connect([&] {
+    elem.changed().connect([&] {
         ++changed_count;
         BOOST_CHECK_EQUAL(elem.index(), 1);
         BOOST_CHECK_EQUAL(*elem, 20);
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
 
     int changed_count = 0;
 
-    elem.changed.connect([&] {
+    elem.changed().connect([&] {
         ++changed_count;
         BOOST_CHECK(elem.is_null());
     });
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(set) {
     int changed_count = 0;
     int current_row_changed_count = 0;
 
-    elem.changed.connect([&] { ++changed_count; });
+    elem.changed().connect([&] { ++changed_count; });
 
     QObject::connect(&selection, &QItemSelectionModel::currentRowChanged,
     [&](const QModelIndex & current) {
@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(set_null) {
     elem.set(vec.handle(2));
 
     int changed_count = 0;
-    elem.changed.connect([&] { ++changed_count; });
+    elem.changed().connect([&] { ++changed_count; });
 
     elem.set({});
     BOOST_CHECK_EQUAL(changed_count, 1);
@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE(change_element) {
     elem.set(vec.handle(1));
 
     int changed_count = 0;
-    elem.changed.connect([&] { ++changed_count; });
+    elem.changed().connect([&] { ++changed_count; });
 
     vec.mut(0) = 15;
     BOOST_CHECK_EQUAL(changed_count, 0);

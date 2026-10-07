@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model) {
     BOOST_CHECK_EQUAL(mdl2.get(), 100);
 
     bool changed_called = false;
-    mdl2.changed.connect([&changed_called, &mdl, &mdl2] {
+    mdl2.changed().connect([&changed_called, &mdl, &mdl2] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
         BOOST_CHECK_EQUAL(mdl2.get(), 200);
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(all_ref_borrowed) {
     BOOST_CHECK_EQUAL(mdl2.get(), 100);
 
     bool changed_called = false;
-    (mdl | mv::all).changed.connect([&changed_called, &mdl, &mdl2] {
+    (mdl | mv::all).changed().connect([&changed_called, &mdl, &mdl2] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
         BOOST_CHECK_EQUAL(mdl2.get(), 200);
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model) {
     BOOST_CHECK_EQUAL(mdl.get(), 100);
 
     bool changed_called = false;
-    mdl.changed.connect([&changed_called, &mdl] {
+    mdl.changed().connect([&changed_called, &mdl] {
         changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
     });

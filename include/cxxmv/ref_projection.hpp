@@ -10,7 +10,6 @@
 #pragma once
 
 #include "projection.hpp"
-#include "signal_ref.hpp"
 #include <utility>
 
 
@@ -20,12 +19,10 @@ namespace mv {
 template <typename Base>
 requires observable<Base>
 class ref_projection: public projection_base {
-    static auto & get_sig_type(Base && b) { return b.changed; }
-
 public:
     /// Constructs view with reference to another range
     ref_projection(Base & b):
-        base_{b}, changed{b.changed} {}
+        base_{b} {}
 
     /// Copy constructor
     ref_projection(const ref_projection & other) = default;
@@ -55,7 +52,10 @@ public:
         return base_.mut();
     }
 
-    signal_ref<decltype(get_sig_type(std::declval<Base>()))> changed;
+    /// Returns changed signal of base observable
+    decltype(auto) changed() const {
+        return base_.changed();
+    }
 
 private:
     Base & base_;           ///< Reference to base observable

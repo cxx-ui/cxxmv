@@ -160,10 +160,10 @@ public:
     /// Move constructor
     vector(vector && other):
     storage_{std::move(other.storage_)} {
-        assert(other.before_inserted.empty() && other.after_inserted.empty() &&
-               other.before_erased.empty() && other.after_erased.empty() &&
-               other.before_changed.empty() && other.after_changed.empty() &&
-               other.before_moved.empty() && other.after_moved.empty() &&
+        assert(other.before_inserted_.empty() && other.after_inserted_.empty() &&
+               other.before_erased_.empty() && other.after_erased_.empty() &&
+               other.before_changed_.empty() && other.after_changed_.empty() &&
+               other.before_moved_.empty() && other.after_moved_.empty() &&
                "moving vector with signal connections");
 
         assert(other.elements_.empty() && "moving vector with element models");
@@ -202,28 +202,28 @@ public:
 
         auto idx = std::distance(storage_.cbegin(), pos);
         auto sz = std::distance(first, last);
-        before_inserted(idx, sz);
+        before_inserted_(idx, sz);
         storage_.insert(pos, first, last);
         update_inserted(idx, sz);
-        after_inserted(idx, sz);
+        after_inserted_(idx, sz);
     }
 
     /// Inserts element at specified position
     void insert(const const_iterator & pos, const T & val) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(idx, 1);
+        before_inserted_(idx, 1);
         storage_.insert(pos, val);
         update_inserted(idx, 1);
-        after_inserted(idx, 1);
+        after_inserted_(idx, 1);
     }
 
     /// Inserts element to specified position with move
     void insert(const const_iterator & pos, T && val) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(idx, 1);
+        before_inserted_(idx, 1);
         storage_.insert(pos, std::move(val));
         update_inserted(idx, 1);
-        after_inserted(idx, 1);
+        after_inserted_(idx, 1);
     }
 
     /// Inserts element at the end of vector
@@ -240,10 +240,10 @@ public:
     template <typename ... Args>
     const_iterator emplace(const const_iterator & pos, Args && ... args) {
         auto idx = std::distance(storage_.cbegin(), pos);
-        before_inserted(idx, 1);
+        before_inserted_(idx, 1);
         auto res = storage_.emplace(pos, std::forward<Args>(args)...);
         update_inserted(idx, 1);
-        after_inserted(idx, 1);
+        after_inserted_(idx, 1);
         return res;
     }
 
@@ -261,10 +261,10 @@ public:
 
         auto idx = std::distance(storage_.cbegin(), first);
         auto sz = std::distance(first, last);
-        before_erased(idx, sz);
+        before_erased_(idx, sz);
         storage_.erase(first, last);
         update_erased(idx, sz);
-        after_erased(idx, sz);
+        after_erased_(idx, sz);
     }
 
     /// Erases all elements
@@ -289,7 +289,7 @@ public:
         auto dest_idx = std::distance(storage_.cbegin(), dest);
         auto sz = last_idx - first_idx;
 
-        before_moved(first_idx, sz, dest_idx);
+        before_moved_(first_idx, sz, dest_idx);
 
         auto storage_first = storage_.begin() + first_idx;
         auto storage_last = storage_.begin() + last_idx;
@@ -302,7 +302,7 @@ public:
         }
 
         update_moved(first_idx, sz, dest_idx);
-        after_moved(first_idx, sz, dest_idx);
+        after_moved_(first_idx, sz, dest_idx);
     }
 
     /// Returns const reference to element
@@ -332,58 +332,57 @@ public:
         return {*this, idx};
     }
 
+    /// Returns signal emitted before items added
+    auto & before_inserted() const { return before_inserted_; }
 
-    /// The signal is emitted before items added
-    mutable signal<void (size_t, size_t)> before_inserted;
+    /// Returns signal emitted after items added
+    auto & after_inserted() const { return after_inserted_; }
 
-    /// The signal is emitted after items added
-    mutable signal<void (size_t, size_t)> after_inserted;
+    /// Returns signal emitted before items removed
+    auto & before_erased() const { return before_erased_; }
 
-    /// The signal is emitted before items removed
-    mutable signal<void (size_t, size_t)> before_erased;
+    /// Returns signal emitted after items removed
+    auto & after_erased() const { return after_erased_; }
 
-    /// The signal is emitted after items removed
-    mutable signal<void (size_t, size_t)> after_erased;
+    /// Returns signal emitted before item is changed
+    auto & before_changed() const { return before_changed_; }
 
-    /// The signal is emitted after item is changed
-    mutable signal<void (size_t)> before_changed;
+    /// Returns signal emitted after item is changed
+    auto & after_changed() const { return after_changed_; }
 
-    /// The signal is after after item is changed
-    mutable signal<void (size_t)> after_changed;
+    /// Returns signal emitted before items moved
+    auto & before_moved() const { return before_moved_; }
 
-    /// The signal is emitted before items moved
-    mutable signal<void (size_t, size_t, size_t)> before_moved;
-
-    /// The signal is emitted after items moved
-    mutable signal<void (size_t, size_t, size_t)> after_moved;
+    /// Returns signal emitted after items moved
+    auto & after_moved() const { return after_moved_; }
 
 private:
     /// Assigns value to element
     void set(const storage_iterator & it, const T & val) {
         auto idx = std::distance(storage_.begin(), it);
-        before_changed(idx);
+        before_changed_(idx);
         storage_[idx] = val;
-        after_changed(idx);
+        after_changed_(idx);
     }
 
     /// Assigns value to element with move
     void set(const storage_iterator & it, T && val) {
         auto idx = std::distance(storage_.begin(), it);
-        before_changed(idx);
+        before_changed_(idx);
         storage_[idx] = std::move(val);
-        after_changed(idx);
+        after_changed_(idx);
     }
 
     /// Emits before changed signal for specified element
     void emit_before_changed(const storage_iterator it) {
         auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
-        before_changed(idx);
+        before_changed_(idx);
     }
 
     /// Emits after changed signal for specified element
     void emit_after_changed(const storage_iterator it) {
         auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
-        after_changed(idx);
+        after_changed_(idx);
     }
 
     friend class vector_element_handle<T>;
@@ -442,6 +441,15 @@ private:
 
     std::vector<T> storage_;                                    ///< Vector storage
     std::unordered_set<vector_element_handle<T> *> elements_;   ///< Set of element handles
+
+    mutable signal<void (size_t, size_t)> before_inserted_;          ///< Before inserted signal
+    mutable signal<void (size_t, size_t)> after_inserted_;           ///< After inserted signal
+    mutable signal<void (size_t, size_t)> before_erased_;            ///< Before erased signal
+    mutable signal<void (size_t, size_t)> after_erased_;             ///< After erased signal
+    mutable signal<void (size_t)> before_changed_;                   ///< Before changed signal
+    mutable signal<void (size_t)> after_changed_;                    ///< After changed signal
+    mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
+    mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
 };
 
 
@@ -565,7 +573,7 @@ public:
     /// Move constructor
     element_model(element_model && other):
     handle_{other.handle_} {
-        assert(other.changed.empty() && "moving model with signal connections");
+        assert(other.changed_.empty() && "moving model with signal connections");
         connect_signals();
     }
 
@@ -607,11 +615,13 @@ public:
         disconnect_signals();
         handle_ = handle;
         connect_signals();
-        changed();
+        changed_();
     }
 
-    /// The signal is emitted after element is changed
-    mutable signal<void ()> changed;
+    /// Returns signal emitted after element is changed
+    signal<void ()> & changed() const {
+        return changed_;
+    }
 
 private:
     /// Connects to vector signals if handle is valid
@@ -620,17 +630,18 @@ private:
             return;
         }
 
-        before_erased_con_ = handle_.vec().before_erased.connect([this](size_t idx, size_t count) {
+        before_erased_con_ =
+                handle_.vec().before_erased().connect([this](size_t idx, size_t count) {
             if (index() >= idx && index() < idx + count) {
                 disconnect_signals();
                 handle_ = {};
-                changed();
+                changed_();
             }
         });
 
-        after_changed_con_ = handle_.vec().after_changed.connect([this](size_t idx) {
+        after_changed_con_ = handle_.vec().after_changed().connect([this](size_t idx) {
             if (index() == idx) {
-                changed();
+                changed_();
             }
         });
     }
@@ -642,6 +653,7 @@ private:
     }
 
     vector_element_handle<T> handle_;               ///< Handle pointing to vector element
+    mutable signal<void ()> changed_;               ///< Changed signal
     scoped_signal_connection before_erased_con_;    ///< Connection to vector before_erased signal
     scoped_signal_connection after_changed_con_;    ///< Connection to vector after_changed signal
 };

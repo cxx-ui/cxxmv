@@ -14,7 +14,6 @@
 #include "observable.hpp"
 #include "projection.hpp"
 #include "all.hpp"
-#include "signal_ref.hpp"
 #include <concepts>
 #include <type_traits>
 
@@ -98,22 +97,13 @@ class transform_projection: public projection_base {
 public:
     /// Constructs transform projection with specified get and set functions
     transform_projection(Observable b, GetFn gf, SetFn sf):
-        base_{std::move(b)}, get_fn_{std::move(gf)}, set_fn_{std::move(sf)},
-        changed{base_.changed} {}
+        base_{std::move(b)}, get_fn_{std::move(gf)}, set_fn_{std::move(sf)} {}
 
     /// Copy constructor
-    transform_projection(const transform_projection & other):
-        base_{other.base_},
-        get_fn_{other.get_fn_},
-        set_fn_{other.set_fn_},
-        changed{base_.changed} {}
+    transform_projection(const transform_projection & other) = default;
 
     /// Move constructor
-    transform_projection(transform_projection && other):
-        base_{std::move(other.base_)},
-        get_fn_{std::move(other.get_fn_)},
-        set_fn_{std::move(other.set_fn_)},
-        changed{base_.changed} {}
+    transform_projection(transform_projection && other) = default;
 
     /// Returns transformed value
     decltype(auto) get() const {
@@ -135,8 +125,10 @@ public:
         return transform_mutator{base_.mut(), get_fn_, set_fn_};
     }
 
-    /// The changed signal is emitted after model value changed
-    signal_ref<decltype(Observable::changed)> changed;
+    /// Returns changed signal of base observable
+    decltype(auto) changed() const {
+        return base_.changed();
+    }
 
 private:
     Observable base_;
