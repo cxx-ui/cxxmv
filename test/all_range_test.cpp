@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec.handle(1)};
+    element_t elem{vec.handle_at(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec.handle(1)};
+    element_t elem{vec.handle_at(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     int changed_count = 0;
     elem.changed().connect([&changed_count] { ++changed_count; });
 
-    elem.set(vec.handle(2));
+    elem.set(vec.handle_at(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 3);
 
@@ -196,6 +196,53 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     elem.set({});
     BOOST_CHECK_EQUAL(changed_count, 2);
     BOOST_CHECK(elem.is_null());
+}
+
+
+/// Tests reading and mutating elements by index and handle via all projection
+/// of model reference
+BOOST_AUTO_TEST_CASE(all_ref_model_handle) {
+    mv::vector<int> vec{1, 2, 3};
+    auto vec2 = vec | mv::ranges::all;
+
+    using all_t = std::decay_t<decltype(vec2)>;
+    static_assert(mv::ranges::observable_with_handle<all_t>);
+    static_assert(mv::ranges::model_with_handle<all_t>);
+
+    BOOST_CHECK_EQUAL(vec2.get(1), 2);
+
+    auto h = vec2.handle_at(1);
+    BOOST_CHECK_EQUAL(vec2.get(h), 2);
+
+    vec.insert(vec.cbegin(), 0);
+    BOOST_CHECK_EQUAL(vec2.get(h), 2);
+    BOOST_CHECK_EQUAL(vec2.get(2), 2);
+
+    vec2.mut(h) = 20;
+    BOOST_CHECK_EQUAL(vec[2], 20);
+    BOOST_CHECK_EQUAL(vec2.get(h), 20);
+}
+
+
+/// Tests reading and mutating elements by index and handle via all projection
+/// of temporary range model
+BOOST_AUTO_TEST_CASE(all_temporary_model_handle) {
+    auto vec = mv::vector<int>{1, 2, 3} | mv::ranges::all;
+
+    using all_t = std::decay_t<decltype(vec)>;
+    static_assert(mv::ranges::observable_with_handle<all_t>);
+    static_assert(mv::ranges::model_with_handle<all_t>);
+
+    BOOST_CHECK_EQUAL(vec.get(1), 2);
+
+    auto h = vec.handle_at(1);
+    BOOST_CHECK_EQUAL(vec.get(h), 2);
+
+    vec.mut(0) = 10;
+    vec.mut(h) = 20;
+    BOOST_CHECK_EQUAL(vec.get(0), 10);
+    BOOST_CHECK_EQUAL(vec.get(1), 20);
+    BOOST_CHECK_EQUAL(vec.get(h), 20);
 }
 
 

@@ -9,8 +9,20 @@
 
 #pragma once
 
+#include <concepts>
+#include <cstddef>
+
 
 namespace mv::ranges {
+
+
+/// Element handle concept
+template <typename Handle>
+concept range_element_handle = std::copyable<Handle> &&
+                               requires(const Handle & ch) {
+    /// Returns true if handle is valid
+    { ch.is_valid() } -> std::convertible_to<bool>;
+};
 
 
 /// Implementation of element handle type for range model
@@ -21,11 +33,6 @@ struct element_handle_impl;
 /// Type of element handle in range model
 template <typename Range>
 using element_handle = element_handle_impl<Range>::type;
-
-
-/// Range model with defined element handle type
-template <typename Range>
-concept has_element_handle = requires { typename element_handle<Range>; };
 
 
 }

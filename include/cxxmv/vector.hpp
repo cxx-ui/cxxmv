@@ -23,10 +23,6 @@
 namespace mv {
 
 
-template <typename T>
-class vector_element_handle;
-
-
 /// Vector range model
 template <typename T>
 class vector {
@@ -36,6 +32,9 @@ class vector {
 public:
     /// Type of const iterator over vector elements
     using const_iterator = std::vector<T>::const_iterator;
+
+    /// Handle of vector element
+    class handle;
 
 
     /// Vector element mutator
@@ -166,7 +165,7 @@ public:
                other.before_moved_.empty() && other.after_moved_.empty() &&
                "moving vector with signal connections");
 
-        assert(other.elements_.empty() && "moving vector with element models");
+        assert(other.handles_.empty() && "moving vector with element models");
     }
 
     /// Returns true if vector is empty
@@ -326,8 +325,20 @@ public:
         return mut(idx);
     }
 
+    /// Returns const reference to element referenced by handle
+    const T & get(const handle & h) const {
+        assert(h.is_valid() && &h.model() == this && "invalid handle of vector element");
+        return storage_[h.index()];
+    }
+
+    /// Starts mutating element referenced by handle
+    mutator mut(const handle & h) {
+        assert(h.is_valid() && &h.model() == this && "invalid handle of vector element");
+        return mut(h.index());
+    }
+
     /// Returns handle of element at specified index
-    vector_element_handle<T> handle(size_t idx) {
+    handle handle_at(size_t idx) {
         assert(idx < size() && "invalid vector element index");
         return {*this, idx};
     }
@@ -385,22 +396,20 @@ private:
         after_changed_(idx);
     }
 
-    friend class vector_element_handle<T>;
-
     /// Adds element handle to vector
-    void add_element(vector_element_handle<T> * elem) {
-        elements_.insert(elem);
+    void add_element(handle * elem) {
+        handles_.insert(elem);
     }
 
     /// Removes element handle from vector
-    void remove_element(vector_element_handle<T> * elem) {
-        elements_.erase(elem);
+    void remove_element(handle * elem) {
+        handles_.erase(elem);
     }
 
     /// Updates indexes of element models after inserting elements
     void update_inserted(size_t idx, size_t count) {
-        for (auto elem : elements_) {
-            if (!elem->is_null() && elem->idx_ >= idx) {
+        for (auto elem : handles_) {
+            if (elem->is_valid() && elem->idx_ >= idx) {
                 elem->update_index(elem->idx_ + count);
             }
         }
@@ -408,8 +417,8 @@ private:
 
     /// Updates indexes of element models after erasing elements
     void update_erased(size_t idx, size_t count) {
-        for (auto elem : elements_) {
-            if (elem->is_null() || elem->idx_ < idx) {
+        for (auto elem : handles_) {
+            if (!elem->is_valid() || elem->idx_ < idx) {
                 continue;
             }
 
@@ -423,8 +432,8 @@ private:
 
     /// Updates indexes of element models after moving elements
     void update_moved(size_t first, size_t count, size_t dest) {
-        for (auto elem : elements_) {
-            if (elem->is_null()) {
+        for (auto elem : handles_) {
+            if (!elem->is_valid()) {
                 continue;
             }
 
@@ -440,7 +449,7 @@ private:
     }
 
     std::vector<T> storage_;                                    ///< Vector storage
-    std::unordered_set<vector_element_handle<T> *> elements_;   ///< Set of element handles
+    std::unordered_set<handle *> handles_;                     ///< Set of element handles
 
     mutable signal<void (size_t, size_t)> before_inserted_;          ///< Before inserted signal
     mutable signal<void (size_t, size_t)> after_inserted_;           ///< After inserted signal
@@ -456,13 +465,13 @@ private:
 /// Vector model element handles. Automatically updates element index when element is moved
 /// or removed in vector model.
 template <typename T>
-class vector_element_handle {
+class vector<T>::handle {
 public:
     /// Constructs invalid handle
-    vector_element_handle() = default;
+    handle() = default;
 
     /// Copy constructor
-    vector_element_handle(const vector_element_handle & other):
+    handle(const handle & other):
     vec_{other.vec_}, idx_{other.idx_} {
         if (vec_) {
             vec_->add_element(this);
@@ -470,7 +479,7 @@ public:
     }
 
     /// Copy assignment operator
-    vector_element_handle & operator=(const vector_element_handle & other) {
+    handle & operator=(const handle & other) {
         if (vec_ != other.vec_) {
             if (vec_) {
                 vec_->remove_element(this);
@@ -488,7 +497,7 @@ public:
     }
 
     /// Destroys handle, removes it from vector
-    ~vector_element_handle() {
+    ~handle() {
         if (vec_) {
             vec_->remove_element(this);
         }
@@ -499,13 +508,8 @@ public:
         return idx_ != SIZE_MAX;
     }
 
-    /// Returns true if handle is invalid
-    bool is_null() const {
-        return idx_ == SIZE_MAX;
-    }
-
     /// Returns reference to vector model
-    const vector<T> & model() const {
+    vector<T> & model() const {
         return *vec_;
     }
 
@@ -514,16 +518,12 @@ public:
         return idx_;
     }
 
-    /// Returns vector model
-    vector<T> & vec() const {
-        return *vec_;
-    }
 
 private:
     friend class vector<T>;
 
     /// Constructs handle of element at specified index in vector model
-    vector_element_handle(vector<T> & vec, size_t idx = SIZE_MAX):
+    handle(vector<T> & vec, size_t idx = SIZE_MAX):
     vec_{&vec}, idx_{idx} {
         assert((idx_ == SIZE_MAX || idx_ < vec_->size()) && "invalid vector element index");
         vec_->add_element(this);
@@ -542,7 +542,7 @@ private:
 /// Element handle type for vector model
 template <typename T>
 struct ranges::element_handle_impl<vector<T>> {
-    using type = vector_element_handle<T>;
+    using type = vector<T>::handle;
 };
 
 
@@ -552,16 +552,16 @@ template <typename T>
 class ranges::element_model<vector<T>> {
 public:
     /// Type of element handle
-    using handle_type = vector_element_handle<T>;
+    using handle_type = vector<T>::handle;
 
     /// Constructs model of element referenced by specified handle
-    element_model(const vector_element_handle<T> & handle = {}):
+    element_model(const handle_type & handle = {}):
     handle_{handle} {
         connect_signals();
     }
 
     /// Constructs model of element in specified vector referenced by specified handle
-    element_model(vector<T> & vec, const vector_element_handle<T> & handle = {}):
+    element_model(vector<T> & vec, const handle_type & handle = {}):
     element_model{handle} {
         assert((!handle.is_valid() || &handle.model() == &vec) &&
                "handle references element of another vector");
@@ -585,7 +585,7 @@ public:
 
     /// Returns true if element was removed from vector
     bool is_null() const {
-        return handle_.is_null();
+        return !handle_.is_valid();
     }
 
     /// Returns index of element in vector or SIZE_MAX if element is null
@@ -607,11 +607,11 @@ public:
     /// Starts mutating of element
     auto mut() {
         assert(!is_null() && "mutating null vector element");
-        return handle_.vec().mut(index());
+        return handle_.model().mut(index());
     }
 
     /// Sets handle of element in vector. Emits changed signal.
-    void set(const vector_element_handle<T> & handle) {
+    void set(const handle_type & handle) {
         disconnect_signals();
         handle_ = handle;
         connect_signals();
@@ -631,7 +631,7 @@ private:
         }
 
         before_erased_con_ =
-                handle_.vec().before_erased().connect([this](size_t idx, size_t count) {
+                handle_.model().before_erased().connect([this](size_t idx, size_t count) {
             if (index() >= idx && index() < idx + count) {
                 disconnect_signals();
                 handle_ = {};
@@ -639,7 +639,7 @@ private:
             }
         });
 
-        after_changed_con_ = handle_.vec().after_changed().connect([this](size_t idx) {
+        after_changed_con_ = handle_.model().after_changed().connect([this](size_t idx) {
             if (index() == idx) {
                 changed_();
             }
@@ -652,7 +652,7 @@ private:
         after_changed_con_.disconnect();
     }
 
-    vector_element_handle<T> handle_;               ///< Handle pointing to vector element
+    handle_type handle_;                            ///< Handle pointing to vector element
     mutable signal<void ()> changed_;               ///< Changed signal
     scoped_signal_connection before_erased_con_;    ///< Connection to vector before_erased signal
     scoped_signal_connection after_changed_con_;    ///< Connection to vector after_changed signal
@@ -662,6 +662,7 @@ private:
 static_assert(ranges::observable_as<vector<int>, int>);
 static_assert(ranges::model<vector<int>, int>);
 static_assert(ranges::observable_with_move<vector<int>>);
+static_assert(ranges::range_element_handle<ranges::element_handle<vector<int>>>);
 
 
 }

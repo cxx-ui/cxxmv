@@ -25,9 +25,17 @@ public:
     owning_projection(Base && b):
         base_{std::move(b)} {}
 
+    /// Copy constructor
+    owning_projection(const owning_projection & other) = default;
+
     /// Move constructor
-    owning_projection(owning_projection && other):
-        base_{std::move(other.base_)} {}
+    owning_projection(owning_projection && other) = default;
+
+    /// Copy assignment operator
+    owning_projection & operator=(const owning_projection & other) = default;
+
+    /// Move assignment operator
+    owning_projection & operator=(owning_projection && other) = default;
 
     /// Reads value from observable
     decltype(auto) get() const {

@@ -187,16 +187,16 @@ public:
         set_fn_{std::move(sf)} {}
 
     /// Copy constructor
-    transform_projection(const transform_projection & other):
-        transform_projection_base<Range>{other.base_},
-        get_fn_{other.get_fn_},
-        set_fn_{other.set_fn_} {}
+    transform_projection(const transform_projection & other) = default;
 
     /// Move constructor
-    transform_projection(transform_projection && other):
-        transform_projection_base<Range>{std::move(other.base_)},
-        get_fn_{std::move(other.get_fn_)},
-        set_fn_{std::move(other.set_fn_)} {}
+    transform_projection(transform_projection && other) = default;
+
+    /// Copy assignment operator
+    transform_projection & operator=(const transform_projection & other) = default;
+
+    /// Move assignment operator
+    transform_projection & operator=(transform_projection && other) = default;
 
     /// Returns const iterator pointing to the first transformed element
     const_iterator begin() const {
@@ -239,8 +239,29 @@ public:
     }
 
     /// Returns handle of element at specified index
-    auto handle(size_t idx) requires has_element_handle<Range> {
-        return this->base_.handle(idx);
+    auto handle_at(size_t idx) requires observable_with_handle<Range> {
+        return this->base_.handle_at(idx);
+    }
+
+    /// Reads transformed element at specified index
+    decltype(auto) get(size_t idx) const {
+        return *(begin() + idx);
+    }
+
+    /// Reads transformed element referenced by specified handle
+    template <typename Handle>
+    requires observable_with_handle<Range> && std::same_as<Handle, element_handle<Range>>
+    decltype(auto) get(const Handle & h) const {
+        return get_fn_(this->base_.get(h));
+    }
+
+    /// Starts mutating of transformed element referenced by specified handle
+    template <typename Handle>
+    requires model_with_handle<Range> &&
+             std::same_as<Handle, element_handle<Range>> &&
+             (!std::same_as<SetFn, empty_set_fn>)
+    auto mut(const Handle & h) {
+        return transform_mutator{this->base_.mut(h), get_fn_, set_fn_};
     }
 
     /// Returns signal of base range emitted before items added

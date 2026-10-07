@@ -22,19 +22,22 @@ class ref_projection: public projection_base {
 public:
     /// Constructs view with reference to another range
     ref_projection(Base & b):
-        base_{b} {}
+        base_{&b} {}
 
     /// Copy constructor
     ref_projection(const ref_projection & other) = default;
 
+    /// Copy assignment operator
+    ref_projection & operator=(const ref_projection & other) = default;
+
     /// Returns true if mutator is empty
     bool empty() const {
-        return base_.emtpy();
+        return base_->emtpy();
     }
 
     /// Reads value from observable
     decltype(auto) get() const {
-        return base_.get();
+        return base_->get();
     }
 
     /// Reads value from observable
@@ -44,21 +47,21 @@ public:
 
     /// Returns true if value of base observable is null
     bool is_null() const requires nullable_observable<Base> {
-        return base_.is_null();
+        return base_->is_null();
     }
 
     /// Returns mutator for model value
     auto mut() {
-        return base_.mut();
+        return base_->mut();
     }
 
     /// Returns changed signal of base observable
     decltype(auto) changed() const {
-        return base_.changed();
+        return base_->changed();
     }
 
 private:
-    Base & base_;           ///< Reference to base observable
+    Base * base_;           ///< Pointer to base observable
 };
 
 

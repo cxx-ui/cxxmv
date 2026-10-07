@@ -25,7 +25,7 @@ namespace mv::qt {
 
 /// Item selection model that represents element selected in range model
 template <typename Range>
-requires requires { sizeof(ranges::element_model<Range>); } && ranges::has_element_handle<Range>
+requires requires { sizeof(ranges::element_model<Range>); } && ranges::observable_with_handle<Range>
 class selected_element_model: public QItemSelectionModel {
 public:
     /// Constructs selection model for specified item model and range
@@ -36,7 +36,7 @@ public:
         QObject::connect(this, &QItemSelectionModel::selectionChanged, [this] {
             size_t idx = selected_row();
             if (elem_.index() != idx) {
-                elem_.set(idx == SIZE_MAX ? ranges::element_handle<Range>{} : rng_.handle(idx));
+                elem_.set(idx == SIZE_MAX ? ranges::element_handle<Range>{} : rng_.handle_at(idx));
             }
         });
 

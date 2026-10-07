@@ -668,7 +668,7 @@ BOOST_AUTO_TEST_CASE(element) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(std::is_same_v<decltype(std::declval<element_t>().get()), const std::string &>);
 
-    element_t name{names, vec.handle(1)};
+    element_t name{names, vec.handle_at(1)};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -706,7 +706,7 @@ BOOST_AUTO_TEST_CASE(element_set) {
     int changed_count = 0;
     name.changed().connect([&changed_count] { ++changed_count; });
 
-    name.set(vec.handle(2));
+    name.set(vec.handle_at(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");
 
@@ -727,7 +727,7 @@ BOOST_AUTO_TEST_CASE(element_temporary_base) {
 
     using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
 
-    element_t name{names, names.handle(1)};
+    element_t name{names, names.handle_at(1)};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int changed_count = 0;
@@ -740,6 +740,32 @@ BOOST_AUTO_TEST_CASE(element_temporary_base) {
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Alice");
     BOOST_CHECK_EQUAL(names.cbegin()[1], "Alice");
+}
+
+
+/// Tests reading and mutating transformed elements by index and handle
+BOOST_AUTO_TEST_CASE(handle_get_mut) {
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::ranges::observable_with_handle<names_t>);
+    static_assert(mv::ranges::model_with_handle<names_t>);
+    static_assert(std::is_same_v<decltype(names.get(names.handle_at(0))), const std::string &>);
+
+    BOOST_CHECK_EQUAL(names.get(1), "Jane");
+
+    auto h = names.handle_at(1);
+    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+
+    vec.insert(vec.cbegin(), user{"Tom", "Green"});
+    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+    BOOST_CHECK_EQUAL(names.get(2), "Jane");
+
+    names.mut(h) = "Alice";
+    BOOST_CHECK_EQUAL(vec[2].first_name, "Alice");
+    BOOST_CHECK_EQUAL(vec[2].last_name, "Doe");
+    BOOST_CHECK_EQUAL(names.get(h), "Alice");
 }
 
 

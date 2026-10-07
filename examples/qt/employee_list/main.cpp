@@ -10,6 +10,8 @@
 #include "employee.hpp"
 #include "employee_table_model.hpp"
 #include "employee_widget.hpp"
+#include "position.hpp"
+#include "position_table_model.hpp"
 #include "cxxmv/qt/selected_element_model.hpp"
 #include "cxxmv/ranges/transform.hpp"
 #include <cxxmv/vector.hpp>
@@ -26,6 +28,10 @@
 class main_window: public QMainWindow {
 public:
     main_window() {
+        positions_.push_back({L"Manager", employees_ | mv::ranges::element(employees_.handle_at(1))});
+        positions_.push_back({L"Developer", employees_ | mv::ranges::element(employees_.handle_at(0))});
+        positions_.push_back({L"Tester", employees_ | mv::ranges::element(employees_.handle_at(3))});
+
         auto body = new QWidget;
         setCentralWidget(body);
 
@@ -52,6 +58,18 @@ public:
 
         auto cont = new employee_widget{sel_.element()};
         layout->addWidget(cont);
+
+        positions_view_ = new QTableView;
+        positions_view_->setSelectionBehavior(QAbstractItemView::SelectRows);
+        positions_view_->setSelectionMode(QAbstractItemView::SingleSelection);
+        positions_view_->setDragDropMode(QAbstractItemView::InternalMove);
+        positions_view_->setDragDropOverwriteMode(false);
+        positions_view_->setDropIndicatorShown(true);
+        layout->addWidget(positions_view_);
+
+        old_mdl = positions_view_->model();
+        positions_view_->setModel(&positions_model_);
+        delete old_mdl;
     }
 
     ~main_window() {
@@ -73,7 +91,13 @@ private:
 
     mv::qt::selected_element_model<employee_list> sel_{employees_, &employees_model_};
 
+    position_list positions_{employees_};
+
+    using position_table_model_t = std::decay_t<decltype(position_table_model{positions_})>;
+    position_table_model_t positions_model_{positions_};
+
     QTableView * employees_view_;
+    QTableView * positions_view_;
 };
 
 

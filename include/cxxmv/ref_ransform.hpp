@@ -96,6 +96,12 @@ public:
     /// Move constructor
     ref_transform_projection(ref_transform_projection && other) = default;
 
+    /// Copy assignment operator
+    ref_transform_projection & operator=(const ref_transform_projection & other) = default;
+
+    /// Move assignment operator
+    ref_transform_projection & operator=(ref_transform_projection && other) = default;
+
     /// Returns transformed value
     decltype(auto) get() const {
         return get_ref_fn_(base_.get());

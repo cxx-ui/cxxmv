@@ -42,9 +42,17 @@ public:
     owning_projection(Base && b):
         owning_projection_base<Base>{std::move(b)} {}
 
+    /// Copy constructor
+    owning_projection(const owning_projection & other) = default;
+
     /// Move constructor
-    owning_projection(owning_projection && other):
-        owning_projection_base<Base>{std::move(other.base_)} {}
+    owning_projection(owning_projection && other) = default;
+
+    /// Copy assignment operator
+    owning_projection & operator=(const owning_projection & other) = default;
+
+    /// Move assignment operator
+    owning_projection & operator=(owning_projection && other) = default;
 
     /// Returns const iterator pointing to the first element
     auto begin() const { return std::ranges::begin(std::as_const(this->base_)); }
@@ -72,8 +80,27 @@ public:
     }
 
     /// Returns handle of element at specified index
-    auto handle(size_t idx) requires has_element_handle<Base> {
-        return this->base_.handle(idx);
+    auto handle_at(size_t idx) requires observable_with_handle<Base> {
+        return this->base_.handle_at(idx);
+    }
+
+    /// Reads element at specified index
+    decltype(auto) get(size_t idx) const {
+        return *(begin() + idx);
+    }
+
+    /// Reads element referenced by specified handle
+    template <typename Handle>
+    requires observable_with_handle<Base> && std::same_as<Handle, element_handle<Base>>
+    decltype(auto) get(const Handle & h) const {
+        return this->base_.get(h);
+    }
+
+    /// Starts mutating of element referenced by specified handle
+    template <typename Handle>
+    requires model_with_handle<Base> && std::same_as<Handle, element_handle<Base>>
+    auto mut(const Handle & h) {
+        return this->base_.mut(h);
     }
 
     /// Returns signal of base range emitted before items added

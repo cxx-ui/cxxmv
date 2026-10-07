@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(set) {
         BOOST_CHECK_EQUAL(current.row(), 2);
     });
 
-    elem.set(vec.handle(2));
+    elem.set(vec.handle_at(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(current_row_changed_count, 1);
     BOOST_CHECK_EQUAL(current_row(), 2);
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(set) {
 /// Tests setting null handle of selected element
 BOOST_AUTO_TEST_CASE(set_null) {
     auto & elem = selection.element();
-    elem.set(vec.handle(2));
+    elem.set(vec.handle_at(2));
 
     int changed_count = 0;
     elem.changed().connect([&] { ++changed_count; });
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(set_null) {
 /// Tests changing value of selected element
 BOOST_AUTO_TEST_CASE(change_element) {
     auto & elem = selection.element();
-    elem.set(vec.handle(1));
+    elem.set(vec.handle_at(1));
 
     int changed_count = 0;
     elem.changed().connect([&] { ++changed_count; });
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(change_element) {
 /// Tests inserting elements before selected element
 BOOST_AUTO_TEST_CASE(insert_before) {
     auto & elem = selection.element();
-    elem.set(vec.handle(1));
+    elem.set(vec.handle_at(1));
 
     vec.insert(vec.cbegin(), 5);
     BOOST_CHECK_EQUAL(elem.index(), 2);
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(insert_before) {
 /// Tests moving selected element
 BOOST_AUTO_TEST_CASE(move_selected) {
     auto & elem = selection.element();
-    elem.set(vec.handle(2));
+    elem.set(vec.handle_at(2));
 
     vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
     BOOST_CHECK_EQUAL(elem.index(), 0);
@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(move_selected) {
 /// Tests erasing selected element
 BOOST_AUTO_TEST_CASE(erase_selected) {
     auto & elem = selection.element();
-    elem.set(vec.handle(2));
+    elem.set(vec.handle_at(2));
 
     vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);
     BOOST_CHECK(elem.is_null());

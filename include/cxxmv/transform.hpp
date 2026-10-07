@@ -105,6 +105,12 @@ public:
     /// Move constructor
     transform_projection(transform_projection && other) = default;
 
+    /// Copy assignment operator
+    transform_projection & operator=(const transform_projection & other) = default;
+
+    /// Move assignment operator
+    transform_projection & operator=(transform_projection && other) = default;
+
     /// Returns transformed value
     decltype(auto) get() const {
         return get_fn_(base_.get());

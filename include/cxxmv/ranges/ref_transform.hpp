@@ -188,14 +188,16 @@ public:
         get_ref_fn_{std::move(fn)} {}
 
     /// Copy constructor
-    ref_transform_projection(const ref_transform_projection & other):
-        ref_transform_projection_base<Range>{other.base_},
-        get_ref_fn_{other.get_ref_fn_} {}
+    ref_transform_projection(const ref_transform_projection & other) = default;
 
     /// Move constructor
-    ref_transform_projection(ref_transform_projection && other):
-        ref_transform_projection_base<Range>{std::move(other.base_)},
-        get_ref_fn_{std::move(other.get_ref_fn_)} {}
+    ref_transform_projection(ref_transform_projection && other) = default;
+
+    /// Copy assignment operator
+    ref_transform_projection & operator=(const ref_transform_projection & other) = default;
+
+    /// Move assignment operator
+    ref_transform_projection & operator=(ref_transform_projection && other) = default;
 
     /// Returns const iterator pointing to the first transformed element
     const_iterator begin() const {
@@ -238,8 +240,28 @@ public:
     }
 
     /// Returns handle of element at specified index
-    auto handle(size_t idx) requires has_element_handle<Range> {
-        return this->base_.handle(idx);
+    auto handle_at(size_t idx) requires observable_with_handle<Range> {
+        return this->base_.handle_at(idx);
+    }
+
+    /// Reads transformed element at specified index
+    decltype(auto) get(size_t idx) const {
+        return *(begin() + idx);
+    }
+
+    /// Reads transformed element referenced by specified handle
+    template <typename Handle>
+    requires observable_with_handle<Range> && std::same_as<Handle, element_handle<Range>>
+    decltype(auto) get(const Handle & h) const {
+        return get_ref_fn_(this->base_.get(h));
+    }
+
+    /// Starts mutating of transformed element referenced by specified handle
+    template <typename Handle>
+    requires model_with_handle<Range> &&
+             std::same_as<Handle, element_handle<Range>>
+    auto mut(const Handle & h) {
+        return ref_transform_mutator{this->base_.mut(h), get_ref_fn_};
     }
 
     /// Returns signal of base range emitted before items added
