@@ -33,9 +33,16 @@ BOOST_AUTO_TEST_CASE(transform_int_float) {
     static_assert(std::move_constructible<transform_t>);
     static_assert(std::copy_constructible<transform_t>);
 
-    bool changed_called = false;
-    mdl2.changed().connect([&changed_called, &mdl, &mdl2] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl2.before_changed().connect([&before_changed_called, &mdl, &mdl2] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(mdl.get(), 100);
+        BOOST_CHECK_EQUAL(mdl2.get(), 100.0f);
+    });
+
+    bool after_changed_called = false;
+    mdl2.after_changed().connect([&after_changed_called, &mdl, &mdl2] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
         BOOST_CHECK_EQUAL(mdl2.get(), 200.0f);
     });
@@ -45,7 +52,8 @@ BOOST_AUTO_TEST_CASE(transform_int_float) {
     BOOST_CHECK_EQUAL(mdl.get(), 200);
     BOOST_CHECK_EQUAL(mdl2.get(), 200.0f);
 
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -57,9 +65,17 @@ BOOST_AUTO_TEST_CASE(transform_assign) {
     auto set_fn = [](test_user & u, const std::string & last) { u.set_last_name(last); };
     auto mdl2 = mdl | mv::transform(get_fn, set_fn);
 
-    bool changed_called = false;
-    mdl2.changed().connect([&changed_called, &mdl, &mdl2] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl2.before_changed().connect([&before_changed_called, &mdl, &mdl2] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(mdl->first_name(), "first");
+        BOOST_CHECK_EQUAL(mdl->last_name(), "last");
+        BOOST_CHECK_EQUAL(mdl2.get(), "last");
+    });
+
+    bool after_changed_called = false;
+    mdl2.after_changed().connect([&after_changed_called, &mdl, &mdl2] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(mdl->first_name(), "first");
         BOOST_CHECK_EQUAL(mdl->last_name(), "new last");
         BOOST_CHECK_EQUAL(mdl2.get(), "new last");
@@ -71,7 +87,8 @@ BOOST_AUTO_TEST_CASE(transform_assign) {
     BOOST_CHECK_EQUAL(mdl->last_name(), "new last");
     BOOST_CHECK_EQUAL(mdl2.get(), "new last");
 
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -112,16 +129,23 @@ BOOST_AUTO_TEST_CASE(transform_temporary_model) {
 
     BOOST_CHECK_EQUAL(mdl.get(), 11);
 
-    bool changed_called = false;
-    mdl.changed().connect([&changed_called, &mdl] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl.before_changed().connect([&before_changed_called, &mdl] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(mdl.get(), 11);
+    });
+
+    bool after_changed_called = false;
+    mdl.after_changed().connect([&after_changed_called, &mdl] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 21);
     });
 
     mdl.mut().ref() = 21;
 
     BOOST_CHECK_EQUAL(mdl.get(), 21);
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -134,16 +158,23 @@ BOOST_AUTO_TEST_CASE(transform_temporary_model_move) {
 
     BOOST_CHECK_EQUAL(mdl2.get(), 11);
 
-    bool changed_called = false;
-    mdl2.changed().connect([&changed_called, &mdl2] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl2.before_changed().connect([&before_changed_called, &mdl2] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(mdl2.get(), 11);
+    });
+
+    bool after_changed_called = false;
+    mdl2.after_changed().connect([&after_changed_called, &mdl2] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(mdl2.get(), 21);
     });
 
     mdl2.mut().ref() = 21;
 
     BOOST_CHECK_EQUAL(mdl2.get(), 21);
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -158,9 +189,17 @@ BOOST_AUTO_TEST_CASE(transform_ref_model_copy) {
 
     BOOST_CHECK_EQUAL(mdl3.get(), 11);
 
-    bool changed_called = false;
-    mdl3.changed().connect([&changed_called, &mdl, &mdl2, &mdl3] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl3.before_changed().connect([&before_changed_called, &mdl, &mdl2, &mdl3] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(mdl.get(), 10);
+        BOOST_CHECK_EQUAL(mdl2.get(), 11);
+        BOOST_CHECK_EQUAL(mdl3.get(), 11);
+    });
+
+    bool after_changed_called = false;
+    mdl3.after_changed().connect([&after_changed_called, &mdl, &mdl2, &mdl3] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(mdl.get(), 20);
         BOOST_CHECK_EQUAL(mdl2.get(), 21);
         BOOST_CHECK_EQUAL(mdl3.get(), 21);
@@ -171,7 +210,8 @@ BOOST_AUTO_TEST_CASE(transform_ref_model_copy) {
     BOOST_CHECK_EQUAL(mdl.get(), 20);
     BOOST_CHECK_EQUAL(mdl2.get(), 21);
     BOOST_CHECK_EQUAL(mdl3.get(), 21);
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -183,9 +223,16 @@ BOOST_AUTO_TEST_CASE(transform_mutator_move) {
     auto set_fn = [](int & x, int y) { x = y - 1; };
     auto mdl2 = mdl | mv::transform(get_fn, set_fn);
 
-    int changed_count = 0;
-    mdl2.changed().connect([&changed_count, &mdl, &mdl2] {
-        ++changed_count;
+    int before_changed_count = 0;
+    mdl2.before_changed().connect([&before_changed_count, &mdl, &mdl2] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(mdl.get(), 10);
+        BOOST_CHECK_EQUAL(mdl2.get(), 11);
+    });
+
+    int after_changed_count = 0;
+    mdl2.after_changed().connect([&after_changed_count, &mdl, &mdl2] {
+        ++after_changed_count;
         BOOST_CHECK_EQUAL(mdl.get(), 20);
         BOOST_CHECK_EQUAL(mdl2.get(), 21);
     });
@@ -193,6 +240,7 @@ BOOST_AUTO_TEST_CASE(transform_mutator_move) {
     {
         auto mut = mdl2.mut();
         BOOST_CHECK_EQUAL(mut.ref(), 11);
+        BOOST_CHECK_EQUAL(before_changed_count, 1);
 
         mut.ref() = 21;
 
@@ -201,13 +249,14 @@ BOOST_AUTO_TEST_CASE(transform_mutator_move) {
 
         // model is not changed until mutator is destroyed
         BOOST_CHECK_EQUAL(mdl.get(), 10);
-        BOOST_CHECK_EQUAL(changed_count, 0);
+        BOOST_CHECK_EQUAL(after_changed_count, 0);
     }
 
-    // value is assigned and signal is emitted only once by destroyed mutator
+    // value is assigned and signals are emitted only once
     BOOST_CHECK_EQUAL(mdl.get(), 20);
     BOOST_CHECK_EQUAL(mdl2.get(), 21);
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 }
 
 

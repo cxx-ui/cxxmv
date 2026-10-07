@@ -40,7 +40,7 @@ public:
             }
         });
 
-        elem_changed_con_ = elem_.changed().connect([this] { update_selection(); });
+        elem_changed_con_ = elem_.after_changed().connect([this] { update_selection(); });
     }
 
     /// Returns model of selected element

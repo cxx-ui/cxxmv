@@ -51,9 +51,15 @@ BOOST_AUTO_TEST_CASE(ctor_initializer_list) {
 BOOST_AUTO_TEST_CASE(assign_deref) {
     mv::basic_model<int> mdl{100};
 
-    bool changed_called = false;
-    mdl.changed().connect([&changed_called, &mdl] {
-        changed_called = true;
+    bool before_changed_called = false;
+    mdl.before_changed().connect([&before_changed_called, &mdl] {
+        before_changed_called = true;
+        BOOST_CHECK(*mdl == 100);
+    });
+
+    bool after_changed_called = false;
+    mdl.after_changed().connect([&after_changed_called, &mdl] {
+        after_changed_called = true;
         BOOST_CHECK(*mdl == 200);
     });
 
@@ -61,7 +67,8 @@ BOOST_AUTO_TEST_CASE(assign_deref) {
 
     BOOST_CHECK(*mdl == 200);
 
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 
@@ -69,16 +76,23 @@ BOOST_AUTO_TEST_CASE(assign_deref) {
 BOOST_AUTO_TEST_CASE(mut_assign) {
     mv::basic_model<int> mdl{100};
 
-    int changed_count = 0;
-    mdl.changed().connect([&changed_count, &mdl] {
-        ++changed_count;
+    int before_changed_count = 0;
+    mdl.before_changed().connect([&before_changed_count, &mdl] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(mdl.get(), 100);
+    });
+
+    int after_changed_count = 0;
+    mdl.after_changed().connect([&after_changed_count, &mdl] {
+        ++after_changed_count;
         BOOST_CHECK_EQUAL(mdl.get(), 200);
     });
 
     mdl.mut() = 200;
 
     BOOST_CHECK_EQUAL(mdl.get(), 200);
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 }
 
 

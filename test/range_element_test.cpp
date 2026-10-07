@@ -38,32 +38,41 @@ BOOST_AUTO_TEST_CASE(vector_element) {
     BOOST_CHECK_EQUAL(*elem, 2);
     BOOST_CHECK_EQUAL(elem.get(), 2);
 
-    int changed_count = 0;
-    elem.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.mut(0) = 10;
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.insert(vec.cbegin(), 0);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.mut(0) = 20;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 20);
 
     elem.mut() = 30;
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK_EQUAL(vec[0], 30);
 
-    // erasing element makes projection null without emitting changed signal
+    // erasing element makes projection null without emitting changed signals
     vec.erase(vec.cbegin(), vec.cbegin() + 1);
     BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
 }
 
 
@@ -103,15 +112,20 @@ BOOST_AUTO_TEST_CASE(transform_element) {
 
     BOOST_CHECK_EQUAL(*name, "Jane");
 
-    int changed_count = 0;
-    name.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    name.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    name.after_changed().connect([&] { ++after_changed_count; });
 
     vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
     BOOST_CHECK_EQUAL(*name, "Jane");
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     name.mut() = std::string{"Alice"};
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Alice");
     BOOST_CHECK_EQUAL(vec[2].first_name(), "Alice");
     BOOST_CHECK_EQUAL(vec[2].last_name(), "Doe");
@@ -131,11 +145,15 @@ BOOST_AUTO_TEST_CASE(transform_element_read_only) {
 
     BOOST_CHECK_EQUAL(*name, "Jane");
 
-    int changed_count = 0;
-    name.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    name.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    name.after_changed().connect([&] { ++after_changed_count; });
 
     vec.mut(1) = test_user{"Alice", "White"};
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Alice");
 }
 
@@ -154,11 +172,15 @@ BOOST_AUTO_TEST_CASE(ref_transform_element) {
 
     BOOST_CHECK_EQUAL(*name, "Jane");
 
-    int changed_count = 0;
-    name.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    name.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    name.after_changed().connect([&] { ++after_changed_count; });
 
     name.mut() = "Alice";
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(vec[1].first_name(), "Alice");
     BOOST_CHECK_EQUAL(vec[1].last_name(), "Doe");
 }
@@ -171,12 +193,16 @@ BOOST_AUTO_TEST_CASE(null_element) {
 
     BOOST_CHECK(elem.is_null());
 
-    int changed_count = 0;
-    elem.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.mut(0) = 10;
     vec.mut(2) = 30;
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 }
 
 
@@ -184,23 +210,29 @@ BOOST_AUTO_TEST_CASE(null_element) {
 BOOST_AUTO_TEST_CASE(element_copy) {
     mv::vector<int> vec{1, 2, 3};
 
-    int changed_count = 0;
-    mv::scoped_signal_connection con;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+    mv::scoped_signal_connection before_con;
+    mv::scoped_signal_connection after_con;
 
     {
         auto elem = vec | mv::ranges::element(vec.handle_at(1));
         auto copy = elem;
         BOOST_CHECK_EQUAL(*copy, 2);
-        con = copy.changed().connect([&] { ++changed_count; });
+        before_con = copy.before_changed().connect([&] { ++before_changed_count; });
+        after_con = copy.after_changed().connect([&] { ++after_changed_count; });
     }
 
     vec.insert(vec.cbegin(), 0);
     vec.mut(2) = 20;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 
-    con.disconnect();
+    before_con.disconnect();
+    after_con.disconnect();
     vec.mut(2) = 30;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 }
 
 

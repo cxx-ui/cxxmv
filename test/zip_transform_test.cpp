@@ -48,9 +48,15 @@ BOOST_AUTO_TEST_CASE(zip_transform_base_changed) {
     };
     mv::zip_transform_projection zip{get_fn, mdl1 | mv::all, mdl2 | mv::all};
 
-    bool changed_called = false;
-    zip.changed().connect([&changed_called, &zip] {
-        changed_called = true;
+    bool before_changed_called = false;
+    zip.before_changed().connect([&before_changed_called, &zip] {
+        before_changed_called = true;
+        BOOST_CHECK_EQUAL(zip.get(), "Mr. last");
+    });
+
+    bool after_changed_called = false;
+    zip.after_changed().connect([&after_changed_called, &zip] {
+        after_changed_called = true;
         BOOST_CHECK_EQUAL(zip.get(), "Dr. last");
     });
 
@@ -58,7 +64,8 @@ BOOST_AUTO_TEST_CASE(zip_transform_base_changed) {
 
     BOOST_CHECK_EQUAL(zip.get(), "Dr. last");
 
-    BOOST_CHECK(changed_called);
+    BOOST_CHECK(before_changed_called);
+    BOOST_CHECK(after_changed_called);
 }
 
 

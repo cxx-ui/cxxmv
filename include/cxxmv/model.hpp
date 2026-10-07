@@ -33,7 +33,12 @@ concept mutator = requires(const Mutator & mut) {
 
     /// Getting pointer to value for field access
     { mut.operator->() } -> std::convertible_to<Value *>;
+};
 
+
+/// Mutator concept with assignment of value to mutator
+template <typename Mutator, typename Value>
+concept assignable_mutator = mutator<Mutator, Value> && requires(const Mutator & mut) {
     /// Assigns value of model
     { mut = std::declval<Value>() };
 };

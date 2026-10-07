@@ -31,26 +31,35 @@ template <typename Range>
 requires observable<Range> && observable_with_handle<Range>
 class element_projection: public mv::projection_base {
 public:
-    /// Signal emitted after element is changed
+    /// Signal emitted before or after element is changed
     class changed_signal {
     public:
         /// Constructs signal for specified element projection
-        changed_signal(const element_projection * proj):
-            proj_{proj} {}
+        changed_signal(const element_projection * proj, bool before):
+            proj_{proj}, before_{before} {}
 
         /// Connects function to signal
         signal_connection connect(std::function<void ()> fn) const {
+            if (before_) {
+                return connect_to(proj_->base_.before_changed(), std::move(fn));
+            } else {
+                return connect_to(proj_->base_.after_changed(), std::move(fn));
+            }
+        }
 
-            return proj_->base_.after_changed().connect(
-            [handle = proj_->handle_, fn = std::move(fn)](size_t idx) {
+    private:
+        /// Connects function to specified changed signal of range
+        template <typename RangeSignal>
+        signal_connection connect_to(RangeSignal && sig, std::function<void ()> fn) const {
+            return sig.connect([handle = proj_->handle_, fn = std::move(fn)](size_t idx) {
                 if (handle.index() == idx) {
                     fn();
                 }
             });
         }
 
-    private:
         const element_projection * proj_;       ///< Pointer to element projection
+        bool before_;                           ///< Is it before changed signal
     };
 
     /// Constructs projection of element in specified range referenced by specified handle
@@ -91,9 +100,14 @@ public:
         return base_.mut(handle_);
     }
 
+    /// Returns signal emitted before element is changed
+    changed_signal before_changed() const {
+        return {this, true};
+    }
+
     /// Returns signal emitted after element is changed
-    changed_signal changed() const {
-        return {this};
+    changed_signal after_changed() const {
+        return {this, false};
     }
 
 private:

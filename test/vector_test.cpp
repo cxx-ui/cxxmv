@@ -930,10 +930,12 @@ BOOST_AUTO_TEST_CASE(element_insert) {
     mv::vector<int> vec{1, 2, 3};
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
     int after_inserted_count = 0;
 
-    elem.changed().connect([&] { ++changed_count; });
+    elem.before_changed().connect([&] { ++before_changed_count; });
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.after_inserted().connect([&](size_t, size_t) {
         ++after_inserted_count;
@@ -954,7 +956,8 @@ BOOST_AUTO_TEST_CASE(element_insert) {
     BOOST_CHECK_EQUAL(*elem, 2);
 
     BOOST_CHECK_EQUAL(after_inserted_count, 4);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 }
 
 
@@ -963,11 +966,18 @@ BOOST_AUTO_TEST_CASE(element_erase) {
     mv::vector<int> vec{1, 2, 3, 4, 5};
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(2)};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
     int after_erased_count = 0;
 
-    elem.changed().connect([&] {
-        ++changed_count;
+    elem.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK(!elem.is_null());
+        BOOST_CHECK_EQUAL(*elem, 3);
+    });
+
+    elem.after_changed().connect([&] {
+        ++after_changed_count;
         BOOST_CHECK(elem.is_null());
     });
 
@@ -982,16 +992,19 @@ BOOST_AUTO_TEST_CASE(element_erase) {
 
     vec.erase(vec.cbegin(), vec.cbegin() + 1);
     BOOST_CHECK_EQUAL(*elem, 3);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.erase(vec.cbegin(), vec.cbegin() + 2);
     BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 
     vec.insert(vec.cbegin(), 6);
     vec.clear();
     BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 }
 
 
@@ -1000,10 +1013,12 @@ BOOST_AUTO_TEST_CASE(element_move) {
     mv::vector<int> vec{0, 1, 2, 3, 4, 5};
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(2)};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
     int after_moved_count = 0;
 
-    elem.changed().connect([&] { ++changed_count; });
+    elem.before_changed().connect([&] { ++before_changed_count; });
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.after_moved().connect([&](size_t, size_t, size_t) {
         ++after_moved_count;
@@ -1026,7 +1041,8 @@ BOOST_AUTO_TEST_CASE(element_move) {
     BOOST_CHECK_EQUAL(*elem, 2);
 
     BOOST_CHECK_EQUAL(after_moved_count, 5);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 }
 
 
@@ -1035,26 +1051,35 @@ BOOST_AUTO_TEST_CASE(element_change) {
     mv::vector<int> vec{1, 2, 3};
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
     int after_changed_count = 0;
+    int vec_after_changed_count = 0;
 
-    elem.changed().connect([&] {
-        ++changed_count;
-        BOOST_CHECK_EQUAL(after_changed_count, 2);
+    elem.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(vec_after_changed_count, 2);
+        BOOST_CHECK_EQUAL(*elem, 2);
+    });
+
+    elem.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(vec_after_changed_count, 2);
         BOOST_CHECK_EQUAL(*elem, 5);
     });
 
     vec.after_changed().connect([&](size_t idx) {
-        ++after_changed_count;
-        BOOST_CHECK(idx != 1 || changed_count == 1);
+        ++vec_after_changed_count;
+        BOOST_CHECK(idx != 1 || after_changed_count == 1);
     });
 
     vec.mut(0) = 4;
     vec.mut(2) = 6;
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.mut(1) = 5;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 5);
 }
 
@@ -1064,19 +1089,22 @@ BOOST_AUTO_TEST_CASE(element_mut) {
     mv::vector<int> vec{1, 2, 3};
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
     int after_changed_count = 0;
+    int vec_after_changed_count = 0;
 
-    elem.changed().connect([&] { ++changed_count; });
+    elem.before_changed().connect([&] { ++before_changed_count; });
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.after_changed().connect([&](size_t idx) {
-        ++after_changed_count;
+        ++vec_after_changed_count;
         BOOST_CHECK_EQUAL(idx, 1);
     });
 
     elem.mut() = 5;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(vec_after_changed_count, 1);
 
     std::vector<int> expected{1, 5, 3};
     BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
@@ -1089,14 +1117,18 @@ BOOST_AUTO_TEST_CASE(element_move_ctor) {
     mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
     mv::ranges::element_model<mv::vector<int>> elem2{std::move(elem)};
 
-    int changed_count = 0;
-    elem2.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    elem2.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem2.after_changed().connect([&] { ++after_changed_count; });
 
     vec.insert(vec.cbegin(), 4);
     BOOST_CHECK_EQUAL(*elem2, 2);
 
     vec.mut(2) = 5;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem2, 5);
 }
 
@@ -1106,40 +1138,52 @@ BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<int> vec{1, 2, 3};
     mv::ranges::element_model<mv::vector<int>> elem{};
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
     int expected = 0;
 
-    elem.changed().connect([&] {
-        ++changed_count;
+    elem.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(before_changed_count, after_changed_count + 1);
+    });
+
+    elem.after_changed().connect([&] {
+        ++after_changed_count;
         BOOST_CHECK(elem.is_null() || *elem == expected);
     });
 
     expected = 3;
     elem.set(vec.handle_at(2));
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 3);
 
     expected = 1;
     elem.set(vec.handle_at(0));
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK_EQUAL(*elem, 1);
 
     vec.insert(vec.cbegin(), 0);
     BOOST_CHECK_EQUAL(*elem, 1);
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
 
     expected = 10;
     vec.mut(1) = 10;
-    BOOST_CHECK_EQUAL(changed_count, 3);
+    BOOST_CHECK_EQUAL(before_changed_count, 3);
+    BOOST_CHECK_EQUAL(after_changed_count, 3);
     BOOST_CHECK_EQUAL(*elem, 10);
 
     elem.set({});
-    BOOST_CHECK_EQUAL(changed_count, 4);
+    BOOST_CHECK_EQUAL(before_changed_count, 4);
+    BOOST_CHECK_EQUAL(after_changed_count, 4);
     BOOST_CHECK(elem.is_null());
 
     vec.mut(1) = 20;
-    BOOST_CHECK_EQUAL(changed_count, 4);
+    BOOST_CHECK_EQUAL(before_changed_count, 4);
+    BOOST_CHECK_EQUAL(after_changed_count, 4);
 }
 
 

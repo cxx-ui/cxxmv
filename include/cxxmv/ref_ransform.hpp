@@ -122,9 +122,14 @@ public:
         return ref_transform_mutator{base_.mut(), get_ref_fn_};
     }
 
-    /// Returns changed signal of base observable
-    decltype(auto) changed() const {
-        return base_.changed();
+    /// Returns before changed signal of base observable
+    decltype(auto) before_changed() const {
+        return base_.before_changed();
+    }
+
+    /// Returns after changed signal of base observable
+    decltype(auto) after_changed() const {
+        return base_.after_changed();
     }
 
 private:

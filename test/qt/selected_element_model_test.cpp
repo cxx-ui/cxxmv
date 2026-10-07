@@ -73,16 +73,23 @@ BOOST_AUTO_TEST_CASE(ctor) {
 BOOST_AUTO_TEST_CASE(change_current_row) {
     auto & elem = selection.element();
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
 
-    elem.changed().connect([&] {
-        ++changed_count;
+    elem.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK(elem.is_null());
+    });
+
+    elem.after_changed().connect([&] {
+        ++after_changed_count;
         BOOST_CHECK_EQUAL(elem.index(), 1);
         BOOST_CHECK_EQUAL(*elem, 20);
     });
 
     selection.setCurrentIndex(model.index(1, 0), QItemSelectionModel::ClearAndSelect);
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(elem.index(), 1);
     BOOST_CHECK_EQUAL(*elem, 20);
 }
@@ -93,15 +100,23 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
     auto & elem = selection.element();
     selection.setCurrentIndex(model.index(1, 0), QItemSelectionModel::ClearAndSelect);
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
 
-    elem.changed().connect([&] {
-        ++changed_count;
+    elem.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(elem.index(), 1);
+        BOOST_CHECK_EQUAL(*elem, 20);
+    });
+
+    elem.after_changed().connect([&] {
+        ++after_changed_count;
         BOOST_CHECK(elem.is_null());
     });
 
     selection.clearSelection();
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK(elem.is_null());
     BOOST_CHECK_EQUAL(current_row(), 1);
 }
@@ -111,10 +126,12 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
 BOOST_AUTO_TEST_CASE(set) {
     auto & elem = selection.element();
 
-    int changed_count = 0;
+    int before_changed_count = 0;
+    int after_changed_count = 0;
     int current_row_changed_count = 0;
 
-    elem.changed().connect([&] { ++changed_count; });
+    elem.before_changed().connect([&] { ++before_changed_count; });
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     QObject::connect(&selection, &QItemSelectionModel::currentRowChanged,
     [&](const QModelIndex & current) {
@@ -123,7 +140,8 @@ BOOST_AUTO_TEST_CASE(set) {
     });
 
     elem.set(vec.handle_at(2));
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(current_row_changed_count, 1);
     BOOST_CHECK_EQUAL(current_row(), 2);
     BOOST_CHECK(selection.isRowSelected(2));
@@ -137,11 +155,15 @@ BOOST_AUTO_TEST_CASE(set_null) {
     auto & elem = selection.element();
     elem.set(vec.handle_at(2));
 
-    int changed_count = 0;
-    elem.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     elem.set({});
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK(elem.is_null());
     BOOST_CHECK_EQUAL(current_row(), -1);
     BOOST_CHECK(!selection.hasSelection());
@@ -153,14 +175,19 @@ BOOST_AUTO_TEST_CASE(change_element) {
     auto & elem = selection.element();
     elem.set(vec.handle_at(1));
 
-    int changed_count = 0;
-    elem.changed().connect([&] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&] { ++after_changed_count; });
 
     vec.mut(0) = 15;
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.mut(1) = 25;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 25);
     BOOST_CHECK_EQUAL(current_row(), 1);
 }

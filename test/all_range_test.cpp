@@ -127,21 +127,27 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element) {
     element_t elem{vec.handle_at(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
-    int changed_count = 0;
-    elem.changed().connect([&changed_count] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
     vec.insert(vec.cbegin(), 0);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     elem.mut() = 20;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(vec[2], 20);
     BOOST_CHECK_EQUAL(std::as_const(vec2).begin()[2], 20);
 
     vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);
     BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
 }
 
 
@@ -158,18 +164,24 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
     element_t elem{vec.handle_at(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
-    int changed_count = 0;
-    elem.changed().connect([&changed_count] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
     vec.mut(0) = 10;
-    BOOST_CHECK_EQUAL(changed_count, 0);
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
 
     vec.mut(1) = 20;
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 20);
 
     elem.mut() = 30;
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK_EQUAL(std::as_const(vec).begin()[1], 30);
 }
 
@@ -182,19 +194,25 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     mv::ranges::element_model<std::decay_t<decltype(vec2)>> elem{};
     BOOST_CHECK(elem.is_null());
 
-    int changed_count = 0;
-    elem.changed().connect([&changed_count] { ++changed_count; });
+    int before_changed_count = 0;
+    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
+
+    int after_changed_count = 0;
+    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
     elem.set(vec.handle_at(2));
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 3);
 
     vec.insert(vec.cbegin(), 0);
     BOOST_CHECK_EQUAL(*elem, 3);
-    BOOST_CHECK_EQUAL(changed_count, 1);
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
 
     elem.set({});
-    BOOST_CHECK_EQUAL(changed_count, 2);
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK(elem.is_null());
 }
 

@@ -362,9 +362,14 @@ public:
         base_.set(handle);
     }
 
-    /// Returns changed signal of element model in base range
-    decltype(auto) changed() const {
-        return base_.changed();
+    /// Returns before changed signal of element model in base range
+    decltype(auto) before_changed() const {
+        return base_.before_changed();
+    }
+
+    /// Returns after changed signal of element model in base range
+    decltype(auto) after_changed() const {
+        return base_.after_changed();
     }
 
 private:

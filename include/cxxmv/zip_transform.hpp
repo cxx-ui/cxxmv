@@ -30,11 +30,13 @@ class zip_transform_projection: public projection_base {
     /// Type of array of connections to base observables
     using observables_connections = std::array<scoped_signal_connection, sizeof...(Observables)>;
 
-    /// Shared state for all zip transform projection copies, contains changed signal
-    /// and connection to all base observables
+    /// Shared state for all zip transform projection copies, contains changed signals
+    /// and connections to all base observables
     struct shared_state_t {
-        signal<void ()> changed;        ///< Changed signal
-        observables_connections con;    ///< Array of connections to base observables
+        signal<void ()> before_changed;         ///< Before changed signal
+        signal<void ()> after_changed;          ///< After changed signal
+        observables_connections before_con;     ///< Connections to before changed signals of bases
+        observables_connections after_con;      ///< Connections to after changed signals of bases
     };
 
 public:
@@ -47,7 +49,12 @@ public:
         // to state because connections are owned by state and can't outlive it.
         std::apply([state = state_.get()](Observables & ... bases) {
             std::size_t idx = 0;
-            ((state->con[idx++] = bases.changed().connect([state] { state->changed(); })), ...);
+            ((state->before_con[idx] = bases.before_changed().connect([state] {
+                state->before_changed();
+            }),
+            state->after_con[idx++] = bases.after_changed().connect([state] {
+                state->after_changed();
+            })), ...);
         }, bases_);
     }
 
@@ -70,9 +77,14 @@ public:
         }, bases_);
     }
 
+    /// Returns signal emitted before any of base observables is changed
+    signal<void ()> & before_changed() const {
+        return state_->before_changed;
+    }
+
     /// Returns signal emitted after any of base observables is changed
-    signal<void ()> & changed() const {
-        return state_->changed;
+    signal<void ()> & after_changed() const {
+        return state_->after_changed;
     }
 
 private:

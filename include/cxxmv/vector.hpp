@@ -120,9 +120,9 @@ public:
         /// Starts mutating element
         mutator mut() const { return mutator{vec_, it_}; }
 
-        const T & operator*() const { return *it_; }
-        const T & operator[](difference_type n) const { return *it_; }
-        const T * operator->() const { return &*it_; }
+        T & operator*() const { return *it_; }
+        T & operator[](difference_type n) const { return *it_; }
+        T * operator->() const { return &*it_; }
 
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
@@ -573,7 +573,8 @@ public:
     /// Move constructor
     element_model(element_model && other):
     handle_{other.handle_} {
-        assert(other.changed_.empty() && "moving model with signal connections");
+        assert(other.before_changed_.empty() && other.after_changed_.empty() &&
+               "moving model with signal connections");
         connect_signals();
     }
 
@@ -610,17 +611,23 @@ public:
         return handle_.model().mut(index());
     }
 
-    /// Sets handle of element in vector. Emits changed signal.
+    /// Sets handle of element in vector. Emits before and after changed signals.
     void set(const handle_type & handle) {
+        before_changed_();
         disconnect_signals();
         handle_ = handle;
         connect_signals();
-        changed_();
+        after_changed_();
+    }
+
+    /// Returns signal emitted before element is changed
+    signal<void ()> & before_changed() const {
+        return before_changed_;
     }
 
     /// Returns signal emitted after element is changed
-    signal<void ()> & changed() const {
-        return changed_;
+    signal<void ()> & after_changed() const {
+        return after_changed_;
     }
 
 private:
@@ -633,15 +640,22 @@ private:
         before_erased_con_ =
                 handle_.model().before_erased().connect([this](size_t idx, size_t count) {
             if (index() >= idx && index() < idx + count) {
+                before_changed_();
                 disconnect_signals();
                 handle_ = {};
-                changed_();
+                after_changed_();
+            }
+        });
+
+        before_changed_con_ = handle_.model().before_changed().connect([this](size_t idx) {
+            if (index() == idx) {
+                before_changed_();
             }
         });
 
         after_changed_con_ = handle_.model().after_changed().connect([this](size_t idx) {
             if (index() == idx) {
-                changed_();
+                after_changed_();
             }
         });
     }
@@ -649,12 +663,15 @@ private:
     /// Disconnects from vector signals
     void disconnect_signals() {
         before_erased_con_.disconnect();
+        before_changed_con_.disconnect();
         after_changed_con_.disconnect();
     }
 
     handle_type handle_;                            ///< Handle pointing to vector element
-    mutable signal<void ()> changed_;               ///< Changed signal
+    mutable signal<void ()> before_changed_;        ///< Before changed signal
+    mutable signal<void ()> after_changed_;         ///< After changed signal
     scoped_signal_connection before_erased_con_;    ///< Connection to vector before_erased signal
+    scoped_signal_connection before_changed_con_;   ///< Connection to vector before_changed signal
     scoped_signal_connection after_changed_con_;    ///< Connection to vector after_changed signal
 };
 

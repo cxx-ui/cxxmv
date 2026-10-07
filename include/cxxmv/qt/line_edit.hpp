@@ -48,7 +48,7 @@ public:
             });
         }
 
-        con_ = mdl_.changed().connect([this] { update_value(); });
+        con_ = mdl_.after_changed().connect([this] { update_value(); });
 
         update_value();
     }

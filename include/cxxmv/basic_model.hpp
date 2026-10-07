@@ -24,9 +24,11 @@ public:
     /// Model mutator
     class mutator {
     public:
-        /// Constructs mutator with specified pointer to projection
+        /// Constructs mutator with specified pointer to model, emits before changed signal
         mutator(basic_model * mdl):
-            mdl_{mdl} {}
+        mdl_{mdl} {
+            mdl_->before_changed_();
+        }
 
         /// Mutator is not copyable
         mutator(const mutator &) = delete;
@@ -37,10 +39,10 @@ public:
             other.mdl_ = nullptr;
         }
 
-        /// Destroys mutator, emits changed signal
+        /// Destroys mutator, emits after changed signal
         ~mutator() {
             if (!empty()) {
-                mdl_->changed_();
+                mdl_->after_changed_();
             }
         }
 
@@ -114,14 +116,20 @@ public:
         return mutator{this};
     }
 
+    /// Returns signal emitted before value is changed in the model
+    signal<void ()> & before_changed() const {
+        return before_changed_;
+    }
+
     /// Returns signal emitted after value is changed in the model
-    signal<void ()> & changed() const {
-        return changed_;
+    signal<void ()> & after_changed() const {
+        return after_changed_;
     }
 
 private:
     Value value_;                       ///< Stored value
-    mutable signal<void ()> changed_;   ///< Changed signal
+    mutable signal<void ()> before_changed_;    ///< Before changed signal
+    mutable signal<void ()> after_changed_;     ///< After changed signal
 };
 
 

@@ -19,8 +19,11 @@ namespace mv {
 /// Observable concept
 template <typename Observable>
 concept observable = requires(const Observable & obj) {
-    /// Returns changed signal emitted after observable value is changed
-    { obj.changed() } -> Signal<>;
+    /// Returns signal emitted before observable value is changed
+    { obj.before_changed() } -> Signal<>;
+
+    /// Returns signal emitted after observable value is changed
+    { obj.after_changed() } -> Signal<>;
 };
 
 
