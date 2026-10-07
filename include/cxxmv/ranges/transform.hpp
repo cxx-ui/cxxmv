@@ -11,6 +11,7 @@
 
 #include "../transform.hpp"
 #include "all.hpp"
+#include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
 #include "move_signal_refs.hpp"
@@ -260,6 +261,11 @@ public:
         return transform_mutator{this->base_.mut(idx), get_fn_, set_fn_};
     }
 
+    /// Returns handle of element at specified index
+    auto handle(size_t idx) requires has_element_handle<Range> {
+        return this->base_.handle(idx);
+    }
+
 private:
     GetFn get_fn_;                                      ///< Get function
     SetFn set_fn_;                                      ///< Set function
@@ -314,9 +320,13 @@ template <typename Range, typename GetFn, typename SetFn>
 requires requires { sizeof(element_model<Range>); }
 class element_model<transform_projection<Range, GetFn, SetFn>> {
 public:
-    /// Constructs model of element at specified index in base range of projection
-    element_model(transform_projection<Range, GetFn, SetFn> & proj, size_t idx = SIZE_MAX):
-        base_{proj.base_, idx},
+    /// Type of element handle
+    using handle_type = element_model<Range>::handle_type;
+
+    /// Constructs model of element referenced by handle in base range
+    element_model(transform_projection<Range, GetFn, SetFn> & proj,
+                  const handle_type & handle = {}):
+        base_{handle},
         get_fn_{proj.get_fn_},
         set_fn_{proj.set_fn_},
         changed{base_.changed} {}
@@ -353,19 +363,27 @@ public:
         return base_.index();
     }
 
-    /// Sets index of element in base range, SIZE_MAX makes element null
-    void set_index(size_t idx) {
-        base_.set_index(idx);
+    /// Sets handle of element in base range. Emits changed signal.
+    void set(const handle_type & handle) {
+        base_.set(handle);
     }
 
 private:
-    element_model<Range> base_;                                   ///< Model of element in base range
-    GetFn get_fn_;                                          ///< Get function
-    SetFn set_fn_;                                          ///< Set function
+    element_model<Range> base_;                 ///< Model of element in base range
+    GetFn get_fn_;                              ///< Get function
+    SetFn set_fn_;                              ///< Set function
 
 public:
     /// The signal is emitted after element is changed
     signal_ref<decltype(element_model<Range>::changed)> changed;
+};
+
+
+/// Element handle type for transform projection
+template <typename Range, typename GetFn, typename SetFn>
+requires requires { typename element_handle<Range>; }
+struct element_handle_impl<transform_projection<Range, GetFn, SetFn>> {
+    using type = element_handle<Range>;
 };
 
 

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "ranges/element_handle.hpp"
 #include "ranges/element_model.hpp"
 #include "ranges/model.hpp"
 #include <algorithm>
@@ -20,6 +21,10 @@
 
 
 namespace mv {
+
+
+template <typename T>
+class vector_element_handle;
 
 
 /// Vector range model
@@ -321,6 +326,12 @@ public:
         return mut(idx);
     }
 
+    /// Returns handle of element at specified index
+    vector_element_handle<T> handle(size_t idx) {
+        assert(idx < size() && "invalid vector element index");
+        return {*this, idx};
+    }
+
 
     /// The signal is emitted before items added
     mutable signal<void (size_t, size_t)> before_inserted;
@@ -352,7 +363,6 @@ private:
         auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = val;
-        emit_elements_changed(idx);
         after_changed(idx);
     }
 
@@ -361,7 +371,6 @@ private:
         auto idx = std::distance(storage_.begin(), it);
         before_changed(idx);
         storage_[idx] = std::move(val);
-        emit_elements_changed(idx);
         after_changed(idx);
     }
 
@@ -374,19 +383,18 @@ private:
     /// Emits after changed signal for specified element
     void emit_after_changed(const storage_iterator it) {
         auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
-        emit_elements_changed(idx);
         after_changed(idx);
     }
 
-    friend class ranges::element_model<vector>;
+    friend class vector_element_handle<T>;
 
-    /// Adds element model to vector
-    void add_element(ranges::element_model<vector> * elem) {
+    /// Adds element handle to vector
+    void add_element(vector_element_handle<T> * elem) {
         elements_.insert(elem);
     }
 
-    /// Removes element model from vector
-    void remove_element(ranges::element_model<vector> * elem) {
+    /// Removes element handle from vector
+    void remove_element(vector_element_handle<T> * elem) {
         elements_.erase(elem);
     }
 
@@ -432,17 +440,101 @@ private:
         }
     }
 
-    /// Emits changed signal for element models of element at specified index
-    void emit_elements_changed(size_t idx) {
-        for (auto elem : elements_) {
-            if (elem->idx_ == idx) {
-                elem->emit_changed();
-            }
+    std::vector<T> storage_;                                    ///< Vector storage
+    std::unordered_set<vector_element_handle<T> *> elements_;   ///< Set of element handles
+};
+
+
+/// Vector model element handles. Automatically updates element index when element is moved
+/// or removed in vector model.
+template <typename T>
+class vector_element_handle {
+public:
+    /// Constructs invalid handle
+    vector_element_handle() = default;
+
+    /// Copy constructor
+    vector_element_handle(const vector_element_handle & other):
+    vec_{other.vec_}, idx_{other.idx_} {
+        if (vec_) {
+            vec_->add_element(this);
         }
     }
 
-    std::vector<T> storage_;
-    std::unordered_set<ranges::element_model<vector> *> elements_;    ///< Set of element models
+    /// Copy assignment operator
+    vector_element_handle & operator=(const vector_element_handle & other) {
+        if (vec_ != other.vec_) {
+            if (vec_) {
+                vec_->remove_element(this);
+            }
+
+            vec_ = other.vec_;
+
+            if (vec_) {
+                vec_->add_element(this);
+            }
+        }
+
+        idx_ = other.idx_;
+        return *this;
+    }
+
+    /// Destroys handle, removes it from vector
+    ~vector_element_handle() {
+        if (vec_) {
+            vec_->remove_element(this);
+        }
+    }
+
+    /// Returns true if handle is valid
+    bool is_valid() const {
+        return idx_ != SIZE_MAX;
+    }
+
+    /// Returns true if handle is invalid
+    bool is_null() const {
+        return idx_ == SIZE_MAX;
+    }
+
+    /// Returns reference to vector model
+    const vector<T> & model() const {
+        return *vec_;
+    }
+
+    /// Returns index of element in vector or SIZE_MAX if handle is invalid
+    size_t index() const {
+        return idx_;
+    }
+
+    /// Returns vector model
+    vector<T> & vec() const {
+        return *vec_;
+    }
+
+private:
+    friend class vector<T>;
+
+    /// Constructs handle of element at specified index in vector model
+    vector_element_handle(vector<T> & vec, size_t idx = SIZE_MAX):
+    vec_{&vec}, idx_{idx} {
+        assert((idx_ == SIZE_MAX || idx_ < vec_->size()) && "invalid vector element index");
+        vec_->add_element(this);
+    }
+
+    /// Sets current element index without checks
+    void update_index(size_t idx) {
+        idx_ = idx;
+    }
+
+    vector<T> * vec_ = nullptr;         ///< Pointer to vector model
+    size_t idx_ = SIZE_MAX;             ///< Current vector element index
+};
+
+
+/// Element handle type for vector model
+template <typename T>
+struct ranges::element_handle_impl<vector<T>> {
+    using type = vector_element_handle<T>;
 };
 
 
@@ -451,11 +543,20 @@ private:
 template <typename T>
 class ranges::element_model<vector<T>> {
 public:
-    /// Constructs model of element at specified index in vector model
-    element_model(vector<T> & vec, size_t idx = SIZE_MAX):
-    vec_{&vec}, idx_{idx} {
-        assert(idx_ == SIZE_MAX || idx_ < vec_->size() && "invalid vector element index");
-        vec_->add_element(this);
+    /// Type of element handle
+    using handle_type = vector_element_handle<T>;
+
+    /// Constructs model of element referenced by specified handle
+    element_model(const vector_element_handle<T> & handle = {}):
+    handle_{handle} {
+        connect_signals();
+    }
+
+    /// Constructs model of element in specified vector referenced by specified handle
+    element_model(vector<T> & vec, const vector_element_handle<T> & handle = {}):
+    element_model{handle} {
+        assert((!handle.is_valid() || &handle.model() == &vec) &&
+               "handle references element of another vector");
     }
 
     /// Model is not copyable
@@ -463,12 +564,9 @@ public:
 
     /// Move constructor
     element_model(element_model && other):
-    vec_{other.vec_}, idx_{other.idx_} {
+    handle_{other.handle_} {
         assert(other.changed.empty() && "moving model with signal connections");
-
-        vec_->remove_element(&other);
-        vec_->add_element(this);
-        other.vec_ = nullptr;
+        connect_signals();
     }
 
     /// Model is not copy-assignable
@@ -477,22 +575,20 @@ public:
     /// Model is not move-assignable
     element_model & operator=(element_model &) = delete;
 
-    /// Destroys model, removes it from vector
-    ~element_model() {
-        if (vec_) {
-            vec_->remove_element(this);
-        }
-    }
-
     /// Returns true if element was removed from vector
     bool is_null() const {
-        return idx_ == SIZE_MAX;
+        return handle_.is_null();
+    }
+
+    /// Returns index of element in vector or SIZE_MAX if element is null
+    size_t index() const {
+        return handle_.index();
     }
 
     /// Reads value of element
     const T & get() const {
         assert(!is_null() && "reading null vector element");
-        return (*vec_)[idx_];
+        return handle_.model()[index()];
     }
 
     /// Reads value of element
@@ -503,18 +599,14 @@ public:
     /// Starts mutating of element
     auto mut() {
         assert(!is_null() && "mutating null vector element");
-        return vec_->mut(idx_);
+        return handle_.vec().mut(index());
     }
 
-    /// Returns index of element in vector or SIZE_MAX if element is null
-    size_t index() const {
-        return idx_;
-    }
-
-    /// Sets index of element in vector. Emits changed signal.
-    void set_index(size_t idx) {
-        assert((idx == SIZE_MAX || idx < vec_->size()) && "invalid vector element index");
-        idx_ = idx;
+    /// Sets handle of element in vector. Emits changed signal.
+    void set(const vector_element_handle<T> & handle) {
+        disconnect_signals();
+        handle_ = handle;
+        connect_signals();
         changed();
     }
 
@@ -522,24 +614,36 @@ public:
     mutable signal<void ()> changed;
 
 private:
-    friend class vector<T>;
-
-    /// Sets current element index, emits changed signal if element becomes null or not null
-    void update_index(size_t idx) {
-        bool was_null = is_null();
-        idx_ = idx;
-        if (was_null != is_null()) {
-            changed();
+    /// Connects to vector signals if handle is valid
+    void connect_signals() {
+        if (!handle_.is_valid()) {
+            return;
         }
+
+        before_erased_con_ = handle_.vec().before_erased.connect([this](size_t idx, size_t count) {
+            if (index() >= idx && index() < idx + count) {
+                disconnect_signals();
+                handle_ = {};
+                changed();
+            }
+        });
+
+        after_changed_con_ = handle_.vec().after_changed.connect([this](size_t idx) {
+            if (index() == idx) {
+                changed();
+            }
+        });
     }
 
-    /// Emits changed signal
-    void emit_changed() {
-        changed();
+    /// Disconnects from vector signals
+    void disconnect_signals() {
+        before_erased_con_.disconnect();
+        after_changed_con_.disconnect();
     }
 
-    vector<T> * vec_ = nullptr;         ///< Pointer to vector model
-    size_t idx_ = SIZE_MAX;             ///< Current vector element index
+    vector_element_handle<T> handle_;               ///< Handle pointing to vector element
+    scoped_signal_connection before_erased_con_;    ///< Connection to vector before_erased signal
+    scoped_signal_connection after_changed_con_;    ///< Connection to vector after_changed signal
 };
 
 

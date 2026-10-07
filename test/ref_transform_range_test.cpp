@@ -668,7 +668,7 @@ BOOST_AUTO_TEST_CASE(element) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(std::is_same_v<decltype(std::declval<element_t>().get()), const std::string &>);
 
-    element_t name{names, 1};
+    element_t name{names, vec.handle(1)};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -695,8 +695,8 @@ BOOST_AUTO_TEST_CASE(element) {
 }
 
 
-/// Tests setting index of element model of ref transform projection
-BOOST_AUTO_TEST_CASE(element_set_index) {
+/// Tests setting handle of element model of ref transform projection
+BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
     auto names = vec | mv::ranges::ref_transform(get_first_name);
 
@@ -706,7 +706,7 @@ BOOST_AUTO_TEST_CASE(element_set_index) {
     int changed_count = 0;
     name.changed.connect([&changed_count] { ++changed_count; });
 
-    name.set_index(2);
+    name.set(vec.handle(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");
 
@@ -714,7 +714,7 @@ BOOST_AUTO_TEST_CASE(element_set_index) {
     BOOST_CHECK_EQUAL(*name, "Bob");
     BOOST_CHECK_EQUAL(changed_count, 1);
 
-    name.set_index(SIZE_MAX);
+    name.set({});
     BOOST_CHECK_EQUAL(changed_count, 2);
     BOOST_CHECK(name.is_null());
 }
@@ -727,7 +727,7 @@ BOOST_AUTO_TEST_CASE(element_temporary_base) {
 
     using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
 
-    element_t name{names, 1};
+    element_t name{names, names.handle(1)};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int changed_count = 0;

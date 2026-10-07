@@ -914,12 +914,12 @@ BOOST_AUTO_TEST_CASE(element_ctor) {
 
     mv::vector<int> vec{1, 2, 3};
 
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(1)};
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 2);
     BOOST_CHECK_EQUAL(elem.get(), 2);
 
-    mv::ranges::element_model<mv::vector<int>> null_elem{vec};
+    mv::ranges::element_model<mv::vector<int>> null_elem{};
     BOOST_CHECK(null_elem.is_null());
 }
 
@@ -927,7 +927,7 @@ BOOST_AUTO_TEST_CASE(element_ctor) {
 /// Tests updating vector element model index when elements are inserted into vector
 BOOST_AUTO_TEST_CASE(element_insert) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(1)};
 
     int changed_count = 0;
     int after_inserted_count = 0;
@@ -960,7 +960,7 @@ BOOST_AUTO_TEST_CASE(element_insert) {
 /// Tests updating vector element model index when elements are erased from vector
 BOOST_AUTO_TEST_CASE(element_erase) {
     mv::vector<int> vec{1, 2, 3, 4, 5};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 2};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(2)};
 
     int changed_count = 0;
     int after_erased_count = 0;
@@ -997,7 +997,7 @@ BOOST_AUTO_TEST_CASE(element_erase) {
 /// Tests updating vector element model index when elements are moved in vector
 BOOST_AUTO_TEST_CASE(element_move) {
     mv::vector<int> vec{0, 1, 2, 3, 4, 5};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 2};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(2)};
 
     int changed_count = 0;
     int after_moved_count = 0;
@@ -1032,7 +1032,7 @@ BOOST_AUTO_TEST_CASE(element_move) {
 /// Tests changed signal of vector element model when elements are changed in vector
 BOOST_AUTO_TEST_CASE(element_change) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(1)};
 
     int changed_count = 0;
     int after_changed_count = 0;
@@ -1061,7 +1061,7 @@ BOOST_AUTO_TEST_CASE(element_change) {
 /// Tests mutating vector element through vector element model
 BOOST_AUTO_TEST_CASE(element_mut) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(1)};
 
     int changed_count = 0;
     int after_changed_count = 0;
@@ -1085,7 +1085,7 @@ BOOST_AUTO_TEST_CASE(element_mut) {
 /// Tests moving vector element model
 BOOST_AUTO_TEST_CASE(element_move_ctor) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec, 1};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.handle(1)};
     mv::ranges::element_model<mv::vector<int>> elem2{std::move(elem)};
 
     int changed_count = 0;
@@ -1100,10 +1100,10 @@ BOOST_AUTO_TEST_CASE(element_move_ctor) {
 }
 
 
-/// Tests setting index of vector element model
-BOOST_AUTO_TEST_CASE(element_set_index) {
+/// Tests setting handle of vector element model
+BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec};
+    mv::ranges::element_model<mv::vector<int>> elem{};
 
     int changed_count = 0;
     int expected = 0;
@@ -1114,13 +1114,13 @@ BOOST_AUTO_TEST_CASE(element_set_index) {
     });
 
     expected = 3;
-    elem.set_index(2);
+    elem.set(vec.handle(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 3);
 
     expected = 1;
-    elem.set_index(0);
+    elem.set(vec.handle(0));
     BOOST_CHECK_EQUAL(changed_count, 2);
     BOOST_CHECK_EQUAL(*elem, 1);
 
@@ -1133,7 +1133,7 @@ BOOST_AUTO_TEST_CASE(element_set_index) {
     BOOST_CHECK_EQUAL(changed_count, 3);
     BOOST_CHECK_EQUAL(*elem, 10);
 
-    elem.set_index(SIZE_MAX);
+    elem.set({});
     BOOST_CHECK_EQUAL(changed_count, 4);
     BOOST_CHECK(elem.is_null());
 

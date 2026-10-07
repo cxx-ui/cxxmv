@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../signal_ref.hpp"
+#include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
 #include "move_signal_refs.hpp"
@@ -91,6 +92,11 @@ public:
         return base_.mut(it);
     }
 
+    /// Returns handle of element at specified index
+    auto handle(size_t idx) requires has_element_handle<Base> {
+        return base_.handle(idx);
+    }
+
 private:
     friend class element_model<ref_projection>;
 
@@ -122,9 +128,19 @@ template <typename Base>
 requires requires { sizeof(element_model<Base>); }
 class element_model<ref_projection<Base>>: public element_model<Base> {
 public:
-    /// Constructs model of element at specified index in base range of projection
-    element_model(ref_projection<Base> & proj, size_t idx = SIZE_MAX):
-        element_model<Base>{proj.base_, idx} {}
+    using element_model<Base>::element_model;
+
+    /// Constructs model of element in base range of projection referenced by specified handle
+    element_model(ref_projection<Base> & proj, const element_handle<Base> & handle = {}):
+        element_model<Base>{proj.base_, handle} {}
+};
+
+
+/// Element handle type for ref projection
+template <typename Base>
+requires requires { typename element_handle<Base>; }
+struct element_handle_impl<ref_projection<Base>> {
+    using type = element_handle<Base>;
 };
 
 

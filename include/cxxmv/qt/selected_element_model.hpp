@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "../ranges/element_handle.hpp"
 #include "../ranges/element_model.hpp"
 #include "../signals.hpp"
 #include <QAbstractItemModel>
@@ -24,17 +25,18 @@ namespace mv::qt {
 
 /// Item selection model that represents element selected in range model
 template <typename Range>
-requires requires { sizeof(ranges::element_model<Range>); }
+requires requires { sizeof(ranges::element_model<Range>); } && ranges::has_element_handle<Range>
 class selected_element_model: public QItemSelectionModel {
 public:
     /// Constructs selection model for specified item model and range
     selected_element_model(Range & rng, QAbstractItemModel * mdl, QObject * parent = nullptr):
     QItemSelectionModel{mdl, parent},
+    rng_{rng},
     elem_{rng} {
         QObject::connect(this, &QItemSelectionModel::selectionChanged, [this] {
             size_t idx = selected_row();
             if (elem_.index() != idx) {
-                elem_.set_index(idx);
+                elem_.set(idx == SIZE_MAX ? ranges::element_handle<Range>{} : rng_.handle(idx));
             }
         });
 
@@ -72,7 +74,8 @@ private:
         }
     }
 
-    ranges::element_model<Range> elem_;                   ///< Element model for selected element
+    Range & rng_;                                   ///< Range of elements
+    ranges::element_model<Range> elem_;             ///< Element model for selected element
     scoped_signal_connection elem_changed_con_;     ///< Connection to element changed signal
 };
 

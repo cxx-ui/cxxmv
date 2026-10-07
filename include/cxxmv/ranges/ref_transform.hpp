@@ -11,6 +11,7 @@
 
 #include "../ref_ransform.hpp"
 #include "all.hpp"
+#include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
 #include "move_signal_refs.hpp"
@@ -259,6 +260,11 @@ public:
         return ref_transform_mutator{this->base_.mut(idx), get_ref_fn_};
     }
 
+    /// Returns handle of element at specified index
+    auto handle(size_t idx) requires has_element_handle<Range> {
+        return this->base_.handle(idx);
+    }
+
 private:
     GetRefFn get_ref_fn_;                               ///< Get reference function
 
@@ -307,9 +313,12 @@ template <typename Range, typename GetRefFn>
 requires requires { sizeof(element_model<Range>); }
 class element_model<ref_transform_projection<Range, GetRefFn>> {
 public:
-    /// Constructs model of element at specified index in base range of projection
-    element_model(ref_transform_projection<Range, GetRefFn> & proj, size_t idx = SIZE_MAX):
-        base_{proj.base_, idx},
+    /// Type of element handle
+    using handle_type = element_model<Range>::handle_type;
+
+    /// Constructs model of element referenced by handle in base range projection
+    element_model(ref_transform_projection<Range, GetRefFn> & proj, const handle_type & handle = {}):
+        base_{handle},
         get_ref_fn_{proj.get_ref_fn_},
         changed{base_.changed} {}
 
@@ -344,9 +353,9 @@ public:
         return base_.index();
     }
 
-    /// Sets index of element in base range
-    void set_index(size_t idx) {
-        base_.set_index(idx);
+    /// Sets handle of element in base range. Emits changed signal.
+    void set(const handle_type & handle) {
+        base_.set(handle);
     }
 
 private:
@@ -356,6 +365,14 @@ private:
 public:
     /// The signal is emitted after element is changed
     signal_ref<decltype(element_model<Range>::changed)> changed;
+};
+
+
+/// Element handle type for ref transform projection
+template <typename Range, typename GetRefFn>
+requires requires { typename element_handle<Range>; }
+struct element_handle_impl<ref_transform_projection<Range, GetRefFn>> {
+    using type = element_handle<Range>;
 };
 
 

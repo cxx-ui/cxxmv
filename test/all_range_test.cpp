@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec2, 1};
+    element_t elem{vec.handle(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec, 1};
+    element_t elem{vec.handle(1)};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int changed_count = 0;
@@ -174,18 +174,18 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
 }
 
 
-/// Tests setting index of element model of all projection of model reference
-BOOST_AUTO_TEST_CASE(all_ref_model_element_set_index) {
+/// Tests setting handle of element model of all projection of model reference
+BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     mv::vector<int> vec{1, 2, 3};
     auto vec2 = vec | mv::ranges::all;
 
-    mv::ranges::element_model<std::decay_t<decltype(vec2)>> elem{vec2};
+    mv::ranges::element_model<std::decay_t<decltype(vec2)>> elem{};
     BOOST_CHECK(elem.is_null());
 
     int changed_count = 0;
     elem.changed.connect([&changed_count] { ++changed_count; });
 
-    elem.set_index(2);
+    elem.set(vec.handle(2));
     BOOST_CHECK_EQUAL(changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 3);
 
@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set_index) {
     BOOST_CHECK_EQUAL(*elem, 3);
     BOOST_CHECK_EQUAL(changed_count, 1);
 
-    elem.set_index(SIZE_MAX);
+    elem.set({});
     BOOST_CHECK_EQUAL(changed_count, 2);
     BOOST_CHECK(elem.is_null());
 }
