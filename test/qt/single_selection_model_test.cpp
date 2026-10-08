@@ -4,12 +4,12 @@
 // See accompanying file LICENSE for license information.
 //
 
-/// \file selected_element_model_test.cpp
-/// Contains unit tests for the selected_element_model class.
+/// \file single_selection_model_test.cpp
+/// Contains unit tests for the single_selection_model class.
 
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/qt/range_model.hpp>
-#include <cxxmv/qt/selected_element_model.hpp>
+#include <cxxmv/qt/single_selection_model.hpp>
 #include <cxxmv/vector.hpp>
 #include <QItemSelectionModel>
 #include <QVariant>
@@ -43,11 +43,13 @@ public:
 };
 
 
-/// Fixture for selected element test suite
-struct selected_element_model_test_fixture {
+/// Fixture for single selection model test suite
+struct single_selection_model_test_fixture {
     mv::vector<int> vec{10, 20, 30, 40};
     test_int_model<mv::ranges::all_t<mv::vector<int> &>> model{vec};
-    mv::qt::selected_element_model<mv::vector<int>> selection{vec, &model};
+    mv::ranges::element<mv::ranges::all_t<mv::vector<int> &>> elem{vec};
+    mv::qt::single_selection_model<mv::ranges::all_t<mv::vector<int> &>> selection{
+        vec, elem, &model};
 
     /// Returns current row of selection model, -1 if there is no current row
     int current_row() const {
@@ -59,20 +61,18 @@ struct selected_element_model_test_fixture {
 }
 
 
-BOOST_FIXTURE_TEST_SUITE(selected_element_model_test, selected_element_model_test_fixture)
+BOOST_FIXTURE_TEST_SUITE(single_selection_model_test, single_selection_model_test_fixture)
 
 
 /// Tests selected element after construction
 BOOST_AUTO_TEST_CASE(ctor) {
-    BOOST_CHECK(selection.element().is_null());
+    BOOST_CHECK(elem.is_null());
     BOOST_CHECK_EQUAL(current_row(), -1);
 }
 
 
 /// Tests changing current row in selection model
 BOOST_AUTO_TEST_CASE(change_current_row) {
-    auto & elem = selection.element();
-
     int before_changed_count = 0;
     int after_changed_count = 0;
 
@@ -97,7 +97,6 @@ BOOST_AUTO_TEST_CASE(change_current_row) {
 
 /// Tests clearing selection in selection model
 BOOST_AUTO_TEST_CASE(clear_selection) {
-    auto & elem = selection.element();
     selection.setCurrentIndex(model.index(1, 0), QItemSelectionModel::ClearAndSelect);
 
     int before_changed_count = 0;
@@ -124,8 +123,6 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
 
 /// Tests setting iterator of selected element
 BOOST_AUTO_TEST_CASE(set) {
-    auto & elem = selection.element();
-
     int before_changed_count = 0;
     int after_changed_count = 0;
     int current_row_changed_count = 0;
@@ -152,7 +149,6 @@ BOOST_AUTO_TEST_CASE(set) {
 
 /// Tests setting null iterator of selected element
 BOOST_AUTO_TEST_CASE(set_null) {
-    auto & elem = selection.element();
     elem.set(vec.begin() + 2);
 
     int before_changed_count = 0;
@@ -172,7 +168,6 @@ BOOST_AUTO_TEST_CASE(set_null) {
 
 /// Tests changing value of selected element
 BOOST_AUTO_TEST_CASE(change_element) {
-    auto & elem = selection.element();
     elem.set(vec.begin() + 1);
 
     int before_changed_count = 0;
@@ -195,7 +190,6 @@ BOOST_AUTO_TEST_CASE(change_element) {
 
 /// Tests inserting elements before selected element
 BOOST_AUTO_TEST_CASE(insert_before) {
-    auto & elem = selection.element();
     elem.set(vec.begin() + 1);
 
     vec.insert(vec.cbegin(), 5);
@@ -207,7 +201,6 @@ BOOST_AUTO_TEST_CASE(insert_before) {
 
 /// Tests moving selected element
 BOOST_AUTO_TEST_CASE(move_selected) {
-    auto & elem = selection.element();
     elem.set(vec.begin() + 2);
 
     vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
@@ -219,7 +212,6 @@ BOOST_AUTO_TEST_CASE(move_selected) {
 
 /// Tests erasing selected element
 BOOST_AUTO_TEST_CASE(erase_selected) {
-    auto & elem = selection.element();
     elem.set(vec.begin() + 2);
 
     vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);

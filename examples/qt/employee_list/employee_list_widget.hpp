@@ -12,7 +12,7 @@
 #include "employee.hpp"
 #include "employee_table_model.hpp"
 #include "employee_widget.hpp"
-#include <cxxmv/qt/selected_element_model.hpp>
+#include <cxxmv/qt/single_selection_model.hpp>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QTableView>
@@ -31,7 +31,8 @@ public:
     QWidget{parent},
     employees_{employees},
     model_{employees},
-    sel_{employees, &model_} {
+    elem_{employees},
+    sel_{employees, elem_, &model_} {
         auto layout = new QHBoxLayout{this};
         auto list_layout = new QVBoxLayout;
         layout->addLayout(list_layout);
@@ -79,7 +80,7 @@ public:
         connect(&model_, &QAbstractItemModel::rowsRemoved, [this] { update_buttons(); });
         connect(&model_, &QAbstractItemModel::rowsMoved, [this] { update_buttons(); });
 
-        edit_ = new employee_widget{sel_.element()};
+        edit_ = new employee_widget{elem_};
         layout->addWidget(edit_);
 
         update_buttons();
@@ -94,43 +95,47 @@ public:
 private:
     /// Adds new employee after selected one or at the end of list and selects it
     void add() {
-        auto & elem = sel_.element();
-        auto pos = elem.is_null() ? employees_.cend() : elem.iterator() + 1;
-        elem.set(employees_.emplace(pos, L"New", L"Employee"));
+        auto pos = elem_.is_null() ? employees_.cend() : elem_.iterator() + 1;
+        elem_.set(employees_.emplace(pos, L"New", L"Employee"));
     }
 
     /// Removes selected employee
     void remove() {
-        auto it = sel_.element().iterator();
+        auto it = elem_.iterator();
         employees_.erase(it, it + 1);
     }
 
     /// Moves selected employee one position up
     void move_up() {
-        auto it = sel_.element().iterator();
+        auto it = elem_.iterator();
         employees_.move(it, it + 1, it - 1);
     }
 
     /// Moves selected employee one position down
     void move_down() {
-        auto it = sel_.element().iterator();
+        auto it = elem_.iterator();
         employees_.move(it, it + 1, it + 2);
     }
 
     /// Enables or disables buttons depending on selected employee
     void update_buttons() {
-        auto & elem = sel_.element();
-        bool has_sel = !elem.is_null();
+        bool has_sel = !elem_.is_null();
         remove_button_->setEnabled(has_sel);
-        up_button_->setEnabled(has_sel && elem.iterator() != employees_.begin());
-        down_button_->setEnabled(has_sel && elem.iterator() + 1 != employees_.end());
+        up_button_->setEnabled(has_sel && elem_.iterator() != employees_.begin());
+        down_button_->setEnabled(has_sel && elem_.iterator() + 1 != employees_.end());
     }
 
-    using model_t = std::decay_t<decltype(employee_table_model{std::declval<employee_list &>()})>;
+    employee_list & employees_;         ///< Reference to list of employees
 
-    employee_list & employees_;                             ///< Reference to list of employees
-    model_t model_;                                         ///< Table model of employees
-    mv::qt::selected_element_model<employee_list> sel_;     ///< Selected employee model
+    /// Table model for employees
+    employee_table_model<mv::ranges::all_t<employee_list &>> model_;
+
+    /// Selected employee
+    mv::ranges::element<mv::ranges::all_t<employee_list &>> elem_;
+
+    /// Selection model for selected employee
+    mv::qt::single_selection_model<mv::ranges::all_t<employee_list &>> sel_;
+
     QTableView * view_;                                     ///< View of employees
     QWidget * edit_;                                        ///< Widget for editing selected employee
     QPushButton * add_button_;                              ///< Button for adding employee

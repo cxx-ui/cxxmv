@@ -4,38 +4,42 @@
 // See accompanying file LICENSE for license information.
 //
 
-/// \file selected_element_model.hpp
-/// Contains definition of the selected_element_model class.
+/// \file single_selection_model.hpp
+/// Contains definition of the single_selection_model class.
 
 #pragma once
 
+#include "../ranges/all.hpp"
 #include "../ranges/element.hpp"
+#include "../ranges/projection.hpp"
 #include "../signals.hpp"
 #include <QAbstractItemModel>
 #include <QItemSelectionModel>
 #include <QObject>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <ranges>
+#include <utility>
 
 
 namespace mv::qt {
 
 
 /// Item selection model that represents element selected in range model
-template <typename Range>
-requires requires { sizeof(ranges::element<ranges::all_t<Range &>>); }
-class selected_element_model: public QItemSelectionModel {
+template <ranges::observable_projection Range>
+class single_selection_model: public QItemSelectionModel {
 public:
     /// Type of model of selected element
-    using element_type = ranges::element<ranges::all_t<Range &>>;
+    using element_type = ranges::element<Range>;
 
-    /// Constructs selection model for specified item model and range
-    selected_element_model(Range & rng, QAbstractItemModel * mdl, QObject * parent = nullptr):
+    /// Constructs selection model for specified range, element model and item model
+    single_selection_model(Range rng,
+                           element_type & elem,
+                           QAbstractItemModel * mdl,
+                           QObject * parent = nullptr):
     QItemSelectionModel{mdl, parent},
-    rng_{rng},
-    elem_{rng} {
+    rng_{std::move(rng)},
+    elem_{elem} {
         QObject::connect(this, &QItemSelectionModel::selectionChanged, [this] {
             auto rows = selectedRows();
             auto it = rows.size() == 1 ?
@@ -45,11 +49,7 @@ public:
         });
 
         elem_changed_con_ = elem_.after_changed().connect([this] { update_selection(); });
-    }
-
-    /// Returns model of selected element
-    element_type & element() {
-        return elem_;
+        update_selection();
     }
 
 private:
@@ -67,10 +67,14 @@ private:
         }
     }
 
-    Range & rng_;                                   ///< Range of elements
-    element_type elem_;                             ///< Element model for selected element
+    Range rng_;                                     ///< Range of elements
+    element_type & elem_;                           ///< Element model for selected element
     scoped_signal_connection elem_changed_con_;     ///< Connection to element changed signal
 };
+
+
+template <ranges::projectable_observable Range, typename ... Args>
+single_selection_model(Range &&, Args && ...) -> single_selection_model<ranges::all_t<Range>>;
 
 
 }
