@@ -184,9 +184,9 @@ public:
         /// Starts mutating element
         mutator mut() const { return mutator{vec_, ent_}; }
 
-        T & operator*() const { return ent_->value; }
-        T & operator[](difference_type n) const { return *(*this + n); }
-        T * operator->() const { return &ent_->value; }
+        const T & operator*() const { return ent_->value; }
+        const T & operator[](difference_type n) const { return *(*this + n); }
+        const T * operator->() const { return &ent_->value; }
 
         iterator & operator++() { return *this += 1; }
         iterator operator++(int) { auto tmp = *this; *this += 1; return tmp; }
