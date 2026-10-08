@@ -77,9 +77,7 @@ public:
             }
 
             auto it = std::ranges::begin(this->range()) + idx.row();
-            position pos = *it;
-            pos.set_name(var.toString().toStdWString());
-            it.mut() = pos;
+            it.mut()->set_name(var.toString().toStdWString());
             return true;
         }
     }

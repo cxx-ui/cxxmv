@@ -28,9 +28,9 @@
 class main_window: public QMainWindow {
 public:
     main_window() {
-        positions_.push_back({L"Manager", employees_ | mv::ranges::element(employees_.handle_at(1))});
-        positions_.push_back({L"Developer", employees_ | mv::ranges::element(employees_.handle_at(0))});
-        positions_.push_back({L"Tester", employees_ | mv::ranges::element(employees_.handle_at(3))});
+        positions_.emplace_back(L"Manager", employees_, employees_.handle_at(1));
+        positions_.emplace_back(L"Developer", employees_, employees_.handle_at(0));
+        positions_.emplace_back(L"Tester", employees_, employees_.handle_at(3));
 
         auto body = new QWidget;
         setCentralWidget(body);
@@ -91,7 +91,7 @@ private:
 
     mv::qt::selected_element_model<employee_list> sel_{employees_, &employees_model_};
 
-    position_list positions_{employees_};
+    position_list positions_;
 
     using position_table_model_t = std::decay_t<decltype(position_table_model{positions_})>;
     position_table_model_t positions_model_{positions_};
