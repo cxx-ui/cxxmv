@@ -15,6 +15,7 @@
 #include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -123,6 +124,77 @@ public:
         std::optional<GetFn> fn_;           ///< Get function
     };
 
+    class iterator;
+
+    /// Handle of element in projection, contains handle of element in base range
+    class handle {
+    public:
+        /// Type of handle of element in base range
+        using base_handle = element_handle<Range>;
+
+        /// Constructs null handle
+        handle() = default;
+
+        /// Constructs handle with specified handle of element in base range
+        handle(const base_handle & base):
+            base_{base} {}
+
+        /// Constructs handle with specified handle of element in base range, get and set functions
+        handle(const base_handle & base, const GetFn & gf, const SetFn & sf):
+            base_{base}, get_fn_{gf}, set_fn_{sf} {}
+
+        /// Copy constructor
+        handle(const handle &) = default;
+
+        /// Copy assignment operator
+        handle & operator=(const handle & other) {
+            base_ = other.base_;
+            assign_fn(get_fn_, other.get_fn_);
+            assign_fn(set_fn_, other.set_fn_);
+            return *this;
+        }
+
+        /// Converts to true if handle is valid
+        explicit operator bool() const {
+            return static_cast<bool>(base_);
+        }
+
+        /// Returns handle of element in base range
+        const base_handle & base() const {
+            return base_;
+        }
+
+        /// Returns iterator pointing to element
+        transform_projection::iterator iterator() const {
+            assert(get_fn_ && set_fn_ && "getting iterator of handle without functions");
+            return {base_.iterator(), *get_fn_, *set_fn_};
+        }
+
+        friend bool operator==(const handle & a, const handle & b) { return a.base_ == b.base_; }
+        friend auto operator<=>(const handle & a, const handle & b) { return a.base_ <=> b.base_; }
+
+        friend bool operator==(const handle & h, const transform_projection::iterator & it) {
+            return h.base_ == it.base();
+        }
+
+        friend auto operator<=>(const handle & h, const transform_projection::iterator & it) {
+            return h.base_ <=> it.base();
+        }
+
+        friend bool operator==(const handle & h, const const_iterator & it) {
+            return h.base_ == it.base();
+        }
+
+        friend auto operator<=>(const handle & h, const const_iterator & it) {
+            return h.base_ <=> it.base();
+        }
+
+    private:
+        base_handle base_;                  ///< Handle of element in base range
+        std::optional<GetFn> get_fn_;       ///< Get function
+        std::optional<SetFn> set_fn_;       ///< Set function
+    };
+
     /// Iterator over transformed elements that allows modification of elements with mutator
     class iterator {
     public:
@@ -152,6 +224,11 @@ public:
         const value_type operator[](difference_type n) const { return (*get_fn_)(*(it_ + n)); }
         auto mut() const { return transform_mutator{it_.mut(), *get_fn_, *set_fn_}; }
 
+        /// Returns handle of element
+        transform_projection::handle handle() const requires observable_with_handle<Range> {
+            return {it_.handle(), *get_fn_, *set_fn_};
+        }
+
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
         iterator & operator--() { --it_; return *this; }
@@ -178,6 +255,36 @@ public:
         base_iterator it_;                  ///< Iterator in base range
         std::optional<GetFn> get_fn_;       ///< Get function
         std::optional<SetFn> set_fn_;       ///< Set function
+    };
+
+    /// Signal emitted before or after element is changed with iterator pointing to element
+    class changed_signal {
+    public:
+        /// Constructs signal for specified projection
+        changed_signal(const transform_projection * proj, bool before):
+            proj_{proj}, before_{before} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void (const_iterator)> & fn) const {
+            if (before_) {
+                return connect_to(proj_->base_.before_changed(), fn);
+            } else {
+                return connect_to(proj_->base_.after_changed(), fn);
+            }
+        }
+
+    private:
+        /// Connects function to specified changed signal of base range
+        template <typename BaseSignal>
+        signal_connection connect_to(BaseSignal && sig,
+                                     const std::function<void (const_iterator)> & fn) const {
+            return sig.connect([get_fn = proj_->get_fn_, fn](const auto & it) {
+                fn(const_iterator{it, get_fn});
+            });
+        }
+
+        const transform_projection * proj_;     ///< Pointer to projection
+        bool before_;                           ///< Is it before changed signal
     };
 
     /// Constructs transform projection with specified base range, get and set functions
@@ -239,8 +346,8 @@ public:
     }
 
     /// Returns handle of element at specified index
-    auto handle_at(size_t idx) requires observable_with_handle<Range> {
-        return this->base_.handle_at(idx);
+    handle handle_at(size_t idx) requires observable_with_handle<Range> {
+        return {this->base_.handle_at(idx), get_fn_, set_fn_};
     }
 
     /// Reads transformed element at specified index
@@ -250,18 +357,18 @@ public:
 
     /// Reads transformed element referenced by specified handle
     template <typename Handle>
-    requires observable_with_handle<Range> && std::same_as<Handle, element_handle<Range>>
+    requires observable_with_handle<Range> && std::same_as<Handle, handle>
     decltype(auto) get(const Handle & h) const {
-        return get_fn_(this->base_.get(h));
+        return get_fn_(this->base_.get(h.base()));
     }
 
     /// Starts mutating of transformed element referenced by specified handle
     template <typename Handle>
     requires model_with_handle<Range> &&
-             std::same_as<Handle, element_handle<Range>> &&
+             std::same_as<Handle, handle> &&
              (!std::same_as<SetFn, empty_set_fn>)
     auto mut(const Handle & h) {
-        return transform_mutator{this->base_.mut(h), get_fn_, set_fn_};
+        return transform_mutator{this->base_.mut(h.base()), get_fn_, set_fn_};
     }
 
     /// Returns signal of base range emitted before items added
@@ -277,10 +384,10 @@ public:
     decltype(auto) after_erased() const { return this->base_.after_erased(); }
 
     /// Returns signal of base range emitted before item is changed
-    decltype(auto) before_changed() const { return this->base_.before_changed(); }
+    changed_signal before_changed() const { return {this, true}; }
 
     /// Returns signal of base range emitted after item is changed
-    decltype(auto) after_changed() const { return this->base_.after_changed(); }
+    changed_signal after_changed() const { return {this, false}; }
 
     /// Returns signal of base range emitted before items moved
     decltype(auto) before_moved() const requires observable_with_move<Range> {
@@ -328,12 +435,12 @@ requires requires { sizeof(element_model<Range>); }
 class element_model<transform_projection<Range, GetFn, SetFn>> {
 public:
     /// Type of element handle
-    using handle_type = element_model<Range>::handle_type;
+    using handle_type = transform_projection<Range, GetFn, SetFn>::handle;
 
     /// Constructs model of element referenced by handle in base range
     element_model(transform_projection<Range, GetFn, SetFn> & proj,
                   const handle_type & handle = {}):
-        base_{handle},
+        base_{handle.base()},
         get_fn_{proj.get_fn_},
         set_fn_{proj.set_fn_} {}
 
@@ -367,7 +474,7 @@ public:
 
     /// Sets handle of element in base range. Emits changed signal.
     void set(const handle_type & handle) {
-        base_.set(handle);
+        base_.set(handle.base());
     }
 
     /// Returns before changed signal of element model in base range
@@ -391,7 +498,7 @@ private:
 template <typename Range, typename GetFn, typename SetFn>
 requires requires { typename element_handle<Range>; }
 struct element_handle_impl<transform_projection<Range, GetFn, SetFn>> {
-    using type = element_handle<Range>;
+    using type = transform_projection<Range, GetFn, SetFn>::handle;
 };
 
 

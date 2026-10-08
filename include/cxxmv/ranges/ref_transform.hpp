@@ -15,6 +15,7 @@
 #include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -122,6 +123,75 @@ public:
         std::optional<GetRefFn> fn_;        ///< Get reference function
     };
 
+    class iterator;
+
+    /// Handle of element in projection, contains handle of element in base range
+    class handle {
+    public:
+        /// Type of handle of element in base range
+        using base_handle = element_handle<Range>;
+
+        /// Constructs null handle
+        handle() = default;
+
+        /// Constructs handle with specified handle of element in base range
+        handle(const base_handle & base):
+            base_{base} {}
+
+        /// Constructs handle with specified handle of element in base range and get reference function
+        handle(const base_handle & base, const GetRefFn & fn):
+            base_{base}, fn_{fn} {}
+
+        /// Copy constructor
+        handle(const handle &) = default;
+
+        /// Copy assignment operator
+        handle & operator=(const handle & other) {
+            base_ = other.base_;
+            assign_fn(fn_, other.fn_);
+            return *this;
+        }
+
+        /// Converts to true if handle is valid
+        explicit operator bool() const {
+            return static_cast<bool>(base_);
+        }
+
+        /// Returns handle of element in base range
+        const base_handle & base() const {
+            return base_;
+        }
+
+        /// Returns iterator pointing to element
+        ref_transform_projection::iterator iterator() const {
+            assert(fn_ && "getting iterator of handle without function");
+            return {base_.iterator(), *fn_};
+        }
+
+        friend bool operator==(const handle & a, const handle & b) { return a.base_ == b.base_; }
+        friend auto operator<=>(const handle & a, const handle & b) { return a.base_ <=> b.base_; }
+
+        friend bool operator==(const handle & h, const ref_transform_projection::iterator & it) {
+            return h.base_ == it.base();
+        }
+
+        friend auto operator<=>(const handle & h, const ref_transform_projection::iterator & it) {
+            return h.base_ <=> it.base();
+        }
+
+        friend bool operator==(const handle & h, const const_iterator & it) {
+            return h.base_ == it.base();
+        }
+
+        friend auto operator<=>(const handle & h, const const_iterator & it) {
+            return h.base_ <=> it.base();
+        }
+
+    private:
+        base_handle base_;                  ///< Handle of element in base range
+        std::optional<GetRefFn> fn_;        ///< Get reference function
+    };
+
     /// Iterator over transformed elements that allows modification of elements with mutator
     class iterator {
     public:
@@ -155,6 +225,11 @@ public:
 
         auto mut() const { return ref_transform_mutator{it_.mut(), *fn_}; }
 
+        /// Returns handle of element
+        ref_transform_projection::handle handle() const requires observable_with_handle<Range> {
+            return {it_.handle(), *fn_};
+        }
+
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
         iterator & operator--() { --it_; return *this; }
@@ -180,6 +255,36 @@ public:
     private:
         base_iterator it_;                  ///< Iterator in base range
         std::optional<GetRefFn> fn_;        ///< Get reference function
+    };
+
+    /// Signal emitted before or after element is changed with iterator pointing to element
+    class changed_signal {
+    public:
+        /// Constructs signal for specified projection
+        changed_signal(const ref_transform_projection * proj, bool before):
+            proj_{proj}, before_{before} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void (const_iterator)> & fn) const {
+            if (before_) {
+                return connect_to(proj_->base_.before_changed(), fn);
+            } else {
+                return connect_to(proj_->base_.after_changed(), fn);
+            }
+        }
+
+    private:
+        /// Connects function to specified changed signal of base range
+        template <typename BaseSignal>
+        signal_connection connect_to(BaseSignal && sig,
+                                     const std::function<void (const_iterator)> & fn) const {
+            return sig.connect([get_ref_fn = proj_->get_ref_fn_, fn](const auto & it) {
+                fn(const_iterator{it, get_ref_fn});
+            });
+        }
+
+        const ref_transform_projection * proj_;     ///< Pointer to projection
+        bool before_;                               ///< Is it before changed signal
     };
 
     /// Constructs ref transform projection with specified base range and get reference function
@@ -240,8 +345,8 @@ public:
     }
 
     /// Returns handle of element at specified index
-    auto handle_at(size_t idx) requires observable_with_handle<Range> {
-        return this->base_.handle_at(idx);
+    handle handle_at(size_t idx) requires observable_with_handle<Range> {
+        return {this->base_.handle_at(idx), get_ref_fn_};
     }
 
     /// Reads transformed element at specified index
@@ -251,17 +356,17 @@ public:
 
     /// Reads transformed element referenced by specified handle
     template <typename Handle>
-    requires observable_with_handle<Range> && std::same_as<Handle, element_handle<Range>>
+    requires observable_with_handle<Range> && std::same_as<Handle, handle>
     decltype(auto) get(const Handle & h) const {
-        return get_ref_fn_(this->base_.get(h));
+        return get_ref_fn_(this->base_.get(h.base()));
     }
 
     /// Starts mutating of transformed element referenced by specified handle
     template <typename Handle>
     requires model_with_handle<Range> &&
-             std::same_as<Handle, element_handle<Range>>
+             std::same_as<Handle, handle>
     auto mut(const Handle & h) {
-        return ref_transform_mutator{this->base_.mut(h), get_ref_fn_};
+        return ref_transform_mutator{this->base_.mut(h.base()), get_ref_fn_};
     }
 
     /// Returns signal of base range emitted before items added
@@ -277,10 +382,10 @@ public:
     decltype(auto) after_erased() const { return this->base_.after_erased(); }
 
     /// Returns signal of base range emitted before item is changed
-    decltype(auto) before_changed() const { return this->base_.before_changed(); }
+    changed_signal before_changed() const { return {this, true}; }
 
     /// Returns signal of base range emitted after item is changed
-    decltype(auto) after_changed() const { return this->base_.after_changed(); }
+    changed_signal after_changed() const { return {this, false}; }
 
     /// Returns signal of base range emitted before items moved
     decltype(auto) before_moved() const requires observable_with_move<Range> {
@@ -322,11 +427,11 @@ requires requires { sizeof(element_model<Range>); }
 class element_model<ref_transform_projection<Range, GetRefFn>> {
 public:
     /// Type of element handle
-    using handle_type = element_model<Range>::handle_type;
+    using handle_type = ref_transform_projection<Range, GetRefFn>::handle;
 
     /// Constructs model of element referenced by handle in base range projection
     element_model(ref_transform_projection<Range, GetRefFn> & proj, const handle_type & handle = {}):
-        base_{handle},
+        base_{handle.base()},
         get_ref_fn_{proj.get_ref_fn_} {}
 
     /// Move constructor
@@ -359,7 +464,7 @@ public:
 
     /// Sets handle of element in base range. Emits changed signal.
     void set(const handle_type & handle) {
-        base_.set(handle);
+        base_.set(handle.base());
     }
 
     /// Returns before changed signal of element model in base range
@@ -382,7 +487,7 @@ private:
 template <typename Range, typename GetRefFn>
 requires requires { typename element_handle<Range>; }
 struct element_handle_impl<ref_transform_projection<Range, GetRefFn>> {
-    using type = element_handle<Range>;
+    using type = ref_transform_projection<Range, GetRefFn>::handle;
 };
 
 

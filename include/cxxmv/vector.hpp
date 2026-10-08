@@ -13,6 +13,7 @@
 #include "ranges/element_model.hpp"
 #include "ranges/model.hpp"
 #include <algorithm>
+#include <compare>
 #include <cassert>
 #include <cstdint>
 #include <stdexcept>
@@ -29,9 +30,56 @@ class vector {
     /// Type of iterator in vector storage
     using storage_iterator = std::vector<T>::iterator;
 
+    /// Type of const iterator in vector storage
+    using storage_const_iterator = std::vector<T>::const_iterator;
+
 public:
-    /// Type of const iterator over vector elements
-    using const_iterator = std::vector<T>::const_iterator;
+    /// Const iterator over vector elements
+    class const_iterator {
+    public:
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+
+        /// Constructs invalid iterator
+        const_iterator() = default;
+
+        /// Constructs iterator pointing to specified position in vector storage
+        const_iterator(storage_const_iterator pos):
+            it_{pos} {}
+
+        const T & operator*() const { return *it_; }
+        const T & operator[](difference_type n) const { return it_[n]; }
+        const T * operator->() const { return &*it_; }
+
+        const_iterator & operator++() { ++it_; return *this; }
+        const_iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
+        const_iterator & operator--() { --it_; return *this; }
+        const_iterator operator--(int) { auto tmp = *this; --it_; return tmp; }
+
+        const_iterator & operator+=(difference_type n) { it_ += n; return *this; }
+        const_iterator & operator-=(difference_type n) { it_ -= n; return *this; }
+
+        friend const_iterator operator+(const_iterator it, difference_type n) { return it += n; }
+        friend const_iterator operator+(difference_type n, const_iterator it) { return it += n; }
+        friend const_iterator operator-(const_iterator it, difference_type n) { return it -= n; }
+
+        friend difference_type operator-(const const_iterator & a, const const_iterator & b) {
+            return a.it_ - b.it_;
+        }
+
+        friend bool operator==(const const_iterator & a, const const_iterator & b) {
+            return a.it_ == b.it_;
+        }
+
+        friend auto operator<=>(const const_iterator & a, const const_iterator & b) {
+            return a.it_ <=> b.it_;
+        }
+
+    private:
+        friend class vector;
+
+        storage_const_iterator it_;         ///< Iterator in storage vector
+    };
 
     /// Handle of vector element
     class handle;
@@ -120,6 +168,11 @@ public:
         /// Starts mutating element
         mutator mut() const { return mutator{vec_, it_}; }
 
+        /// Returns handle of element
+        vector::handle handle() const {
+            return vec_->handle_at(static_cast<size_t>(it_ - vec_->storage_.begin()));
+        }
+
         T & operator*() const { return *it_; }
         T & operator[](difference_type n) const { return *it_; }
         T * operator->() const { return &*it_; }
@@ -141,7 +194,7 @@ public:
         friend auto operator<=>(const iterator & a, const iterator & b) { return a.it_ <=> b.it_; }
 
         /// Converts to const iterator
-        operator const_iterator() const { return it_; }
+        operator const_iterator() const { return storage_const_iterator{it_}; }
 
     private:
         vector * vec_ = nullptr;        ///< Pointer to storage vector
@@ -172,10 +225,10 @@ public:
     bool empty() const { return storage_.empty(); }
 
     /// Returns const iterator pointing to the first element
-    auto begin() const { return storage_.begin(); }
+    const_iterator begin() const { return storage_.cbegin(); }
 
     /// Returns const iterator pointing to one past the last element
-    auto end() const { return storage_.end(); }
+    const_iterator end() const { return storage_.cend(); }
 
     /// Returns const iterator pointing to the first element
     const_iterator cbegin() const { return storage_.cbegin(); }
@@ -199,28 +252,28 @@ public:
             return;
         }
 
-        auto idx = std::distance(storage_.cbegin(), pos);
+        auto idx = std::distance(storage_.cbegin(), pos.it_);
         auto sz = std::distance(first, last);
         before_inserted_(idx, sz);
-        storage_.insert(pos, first, last);
+        storage_.insert(pos.it_, first, last);
         update_inserted(idx, sz);
         after_inserted_(idx, sz);
     }
 
     /// Inserts element at specified position
     void insert(const const_iterator & pos, const T & val) {
-        auto idx = std::distance(storage_.cbegin(), pos);
+        auto idx = std::distance(storage_.cbegin(), pos.it_);
         before_inserted_(idx, 1);
-        storage_.insert(pos, val);
+        storage_.insert(pos.it_, val);
         update_inserted(idx, 1);
         after_inserted_(idx, 1);
     }
 
     /// Inserts element to specified position with move
     void insert(const const_iterator & pos, T && val) {
-        auto idx = std::distance(storage_.cbegin(), pos);
+        auto idx = std::distance(storage_.cbegin(), pos.it_);
         before_inserted_(idx, 1);
-        storage_.insert(pos, std::move(val));
+        storage_.insert(pos.it_, std::move(val));
         update_inserted(idx, 1);
         after_inserted_(idx, 1);
     }
@@ -238,12 +291,12 @@ public:
     /// Constructs and inserts element at specified position
     template <typename ... Args>
     const_iterator emplace(const const_iterator & pos, Args && ... args) {
-        auto idx = std::distance(storage_.cbegin(), pos);
+        auto idx = std::distance(storage_.cbegin(), pos.it_);
         before_inserted_(idx, 1);
-        auto res = storage_.emplace(pos, std::forward<Args>(args)...);
+        auto res = storage_.emplace(pos.it_, std::forward<Args>(args)...);
         update_inserted(idx, 1);
         after_inserted_(idx, 1);
-        return res;
+        return storage_const_iterator{res};
     }
 
     /// Constructs and inserts element at the end of vector
@@ -258,10 +311,10 @@ public:
             return;
         }
 
-        auto idx = std::distance(storage_.cbegin(), first);
+        auto idx = std::distance(storage_.cbegin(), first.it_);
         auto sz = std::distance(first, last);
         before_erased_(idx, sz);
-        storage_.erase(first, last);
+        storage_.erase(first.it_, last.it_);
         update_erased(idx, sz);
         after_erased_(idx, sz);
     }
@@ -283,9 +336,9 @@ public:
             return;
         }
 
-        auto first_idx = std::distance(storage_.cbegin(), first);
-        auto last_idx = std::distance(storage_.cbegin(), last);
-        auto dest_idx = std::distance(storage_.cbegin(), dest);
+        auto first_idx = std::distance(storage_.cbegin(), first.it_);
+        auto last_idx = std::distance(storage_.cbegin(), last.it_);
+        auto dest_idx = std::distance(storage_.cbegin(), dest.it_);
         auto sz = last_idx - first_idx;
 
         before_moved_(first_idx, sz, dest_idx);
@@ -370,30 +423,26 @@ public:
 private:
     /// Assigns value to element
     void set(const storage_iterator & it, const T & val) {
-        auto idx = std::distance(storage_.begin(), it);
-        before_changed_(idx);
-        storage_[idx] = val;
-        after_changed_(idx);
+        emit_before_changed(it);
+        *it = val;
+        emit_after_changed(it);
     }
 
     /// Assigns value to element with move
     void set(const storage_iterator & it, T && val) {
-        auto idx = std::distance(storage_.begin(), it);
-        before_changed_(idx);
-        storage_[idx] = std::move(val);
-        after_changed_(idx);
+        emit_before_changed(it);
+        *it = std::move(val);
+        emit_after_changed(it);
     }
 
     /// Emits before changed signal for specified element
     void emit_before_changed(const storage_iterator it) {
-        auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
-        before_changed_(idx);
+        before_changed_(const_iterator{storage_const_iterator{it}});
     }
 
     /// Emits after changed signal for specified element
     void emit_after_changed(const storage_iterator it) {
-        auto idx = static_cast<size_t>(std::distance(storage_.begin(), it));
-        after_changed_(idx);
+        after_changed_(const_iterator{storage_const_iterator{it}});
     }
 
     /// Adds element handle to vector
@@ -455,14 +504,14 @@ private:
     mutable signal<void (size_t, size_t)> after_inserted_;           ///< After inserted signal
     mutable signal<void (size_t, size_t)> before_erased_;            ///< Before erased signal
     mutable signal<void (size_t, size_t)> after_erased_;             ///< After erased signal
-    mutable signal<void (size_t)> before_changed_;                   ///< Before changed signal
-    mutable signal<void (size_t)> after_changed_;                    ///< After changed signal
+    mutable signal<void (const_iterator)> before_changed_;           ///< Before changed signal
+    mutable signal<void (const_iterator)> after_changed_;            ///< After changed signal
     mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
     mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
 };
 
 
-/// Vector model element handles. Automatically updates element index when element is moved
+/// Vector model element handle. Automatically updates element index when element is moved
 /// or removed in vector model.
 template <typename T>
 class vector<T>::handle {
@@ -508,6 +557,11 @@ public:
         return idx_ != SIZE_MAX;
     }
 
+    /// Converts to true if handle is valid
+    explicit operator bool() const {
+        return is_valid();
+    }
+
     /// Returns reference to vector model
     vector<T> & model() const {
         return *vec_;
@@ -516,6 +570,37 @@ public:
     /// Returns index of element in vector or SIZE_MAX if handle is invalid
     size_t index() const {
         return idx_;
+    }
+
+    /// Returns iterator pointing to element
+    vector<T>::iterator iterator() const {
+        assert(is_valid() && "getting iterator of invalid handle");
+        return {vec_, vec_->storage_.begin() + idx_};
+    }
+
+    friend bool operator==(const handle & a, const handle & b) {
+        return a.vec_ == b.vec_ && a.idx_ == b.idx_;
+    }
+
+    friend auto operator<=>(const handle & a, const handle & b) {
+        assert(a.vec_ == b.vec_ && "comparing handles of different vectors");
+        return a.idx_ <=> b.idx_;
+    }
+
+    friend bool operator==(const handle & h, const vector<T>::iterator & it) {
+        return h.is_valid() && h.iterator() == it;
+    }
+
+    friend auto operator<=>(const handle & h, const vector<T>::iterator & it) {
+        return h.iterator() <=> it;
+    }
+
+    friend bool operator==(const handle & h, const vector<T>::const_iterator & it) {
+        return h.is_valid() && vector<T>::const_iterator{h.iterator()} == it;
+    }
+
+    friend auto operator<=>(const handle & h, const vector<T>::const_iterator & it) {
+        return vector<T>::const_iterator{h.iterator()} <=> it;
     }
 
 
@@ -647,14 +732,14 @@ private:
             }
         });
 
-        before_changed_con_ = handle_.model().before_changed().connect([this](size_t idx) {
-            if (index() == idx) {
+        before_changed_con_ = handle_.model().before_changed().connect([this](const auto & it) {
+            if (index() == static_cast<size_t>(it - handle_.model().cbegin())) {
                 before_changed_();
             }
         });
 
-        after_changed_con_ = handle_.model().after_changed().connect([this](size_t idx) {
-            if (index() == idx) {
+        after_changed_con_ = handle_.model().after_changed().connect([this](const auto & it) {
+            if (index() == static_cast<size_t>(it - handle_.model().cbegin())) {
                 after_changed_();
             }
         });

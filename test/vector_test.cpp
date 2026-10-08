@@ -95,8 +95,8 @@ BOOST_AUTO_TEST_CASE(insert_single) {
 
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.insert(vec.begin() + 1, 10);
 
@@ -159,8 +159,8 @@ BOOST_AUTO_TEST_CASE(insert_range) {
 
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     std::vector<int> vals{10, 20, 30};
     vec.insert(vec.begin() + 1, vals.begin(), vals.end());
@@ -220,8 +220,8 @@ BOOST_AUTO_TEST_CASE(push_back) {
 
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.push_back(10);
 
@@ -279,8 +279,8 @@ BOOST_AUTO_TEST_CASE(emplace) {
 
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     auto it = vec.emplace(vec.begin() + 1, "Bob", "Brown");
 
@@ -345,8 +345,8 @@ BOOST_AUTO_TEST_CASE(emplace_back) {
 
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     auto it = vec.emplace_back("Bob", "Brown");
 
@@ -419,8 +419,8 @@ BOOST_AUTO_TEST_CASE(erase) {
 
     vec.before_inserted().connect([&](size_t, size_t) { ++before_inserted_count; });
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.erase(vec.begin() + 1, vec.begin() + 3);
 
@@ -477,8 +477,8 @@ BOOST_AUTO_TEST_CASE(clear) {
 
     vec.before_inserted().connect([&](size_t, size_t) { ++before_inserted_count; });
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.clear();
 
@@ -513,7 +513,8 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
     vec.before_moved().connect([&](size_t, size_t, size_t) { ++before_moved_count; });
     vec.after_moved().connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_changed().connect([&](size_t idx) {
+    vec.before_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -522,7 +523,8 @@ BOOST_AUTO_TEST_CASE(iterator_assign) {
         BOOST_CHECK_EQUAL(vec[idx], 2);
     });
 
-    vec.after_changed().connect([&](size_t idx) {
+    vec.after_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -571,7 +573,8 @@ BOOST_AUTO_TEST_CASE(mut_assign) {
     vec.before_moved().connect([&](size_t, size_t, size_t) { ++before_moved_count; });
     vec.after_moved().connect([&](size_t, size_t, size_t) { ++after_moved_count; });
 
-    vec.before_changed().connect([&](size_t idx) {
+    vec.before_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -580,7 +583,8 @@ BOOST_AUTO_TEST_CASE(mut_assign) {
         BOOST_CHECK_EQUAL(vec[idx], 2);
     });
 
-    vec.after_changed().connect([&](size_t idx) {
+    vec.after_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -632,8 +636,8 @@ BOOST_AUTO_TEST_CASE(insert_empty_range) {
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     std::vector<int> vals;
     vec.insert(vec.begin() + 1, vals.begin(), vals.end());
@@ -672,8 +676,8 @@ BOOST_AUTO_TEST_CASE(erase_empty_range) {
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.erase(vec.begin() + 1, vec.begin() + 1);
 
@@ -711,8 +715,8 @@ BOOST_AUTO_TEST_CASE(clear_empty) {
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.clear();
 
@@ -802,8 +806,8 @@ BOOST_AUTO_TEST_CASE(move_forward) {
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cend());
 
@@ -862,8 +866,8 @@ BOOST_AUTO_TEST_CASE(move_backward) {
     vec.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     vec.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     vec.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    vec.before_changed().connect([&](size_t) { ++before_changed_count; });
-    vec.after_changed().connect([&](size_t) { ++after_changed_count; });
+    vec.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    vec.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.move(vec.cbegin() + 3, vec.cend(), vec.cbegin() + 1);
 
@@ -1067,7 +1071,8 @@ BOOST_AUTO_TEST_CASE(element_change) {
         BOOST_CHECK_EQUAL(*elem, 5);
     });
 
-    vec.after_changed().connect([&](size_t idx) {
+    vec.after_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++vec_after_changed_count;
         BOOST_CHECK(idx != 1 || after_changed_count == 1);
     });
@@ -1096,7 +1101,8 @@ BOOST_AUTO_TEST_CASE(element_mut) {
     elem.before_changed().connect([&] { ++before_changed_count; });
     elem.after_changed().connect([&] { ++after_changed_count; });
 
-    vec.after_changed().connect([&](size_t idx) {
+    vec.after_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++vec_after_changed_count;
         BOOST_CHECK_EQUAL(idx, 1);
     });
@@ -1202,7 +1208,8 @@ BOOST_AUTO_TEST_CASE(handle_get_mut) {
     BOOST_CHECK_EQUAL(vec.get(h), 2);
 
     int after_changed_count = 0;
-    vec.after_changed().connect([&](size_t idx) {
+    vec.after_changed().connect([&](const auto & it) {
+        size_t idx = it - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(idx, 2);
     });

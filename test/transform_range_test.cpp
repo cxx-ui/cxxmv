@@ -87,8 +87,8 @@ BOOST_AUTO_TEST_CASE(insert_base_single) {
 
     names.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     names.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    names.before_changed().connect([&](size_t) { ++before_changed_count; });
-    names.after_changed().connect([&](size_t) { ++after_changed_count; });
+    names.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    names.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.insert(vec.begin() + 1, test_user{"Alice", "White"});
 
@@ -147,8 +147,8 @@ BOOST_AUTO_TEST_CASE(insert_base_range) {
 
     names.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     names.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    names.before_changed().connect([&](size_t) { ++before_changed_count; });
-    names.after_changed().connect([&](size_t) { ++after_changed_count; });
+    names.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    names.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     std::vector<test_user> users{{"Alice", "White"}, {"Tom", "Green"}};
     vec.insert(vec.begin() + 1, users.begin(), users.end());
@@ -212,8 +212,8 @@ BOOST_AUTO_TEST_CASE(erase_base) {
 
     names.before_inserted().connect([&](size_t, size_t) { ++before_inserted_count; });
     names.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
-    names.before_changed().connect([&](size_t) { ++before_changed_count; });
-    names.after_changed().connect([&](size_t) { ++after_changed_count; });
+    names.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    names.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.erase(vec.begin() + 1, vec.begin() + 3);
 
@@ -243,7 +243,8 @@ BOOST_AUTO_TEST_CASE(change_base) {
     int before_changed_count = 0;
     int after_changed_count = 0;
 
-    names.before_changed().connect([&](size_t idx) {
+    names.before_changed().connect([&](const auto & it) {
+        size_t idx = it - names.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -252,7 +253,8 @@ BOOST_AUTO_TEST_CASE(change_base) {
         BOOST_CHECK_EQUAL(names.cbegin()[idx], "Jane");
     });
 
-    names.after_changed().connect([&](size_t idx) {
+    names.after_changed().connect([&](const auto & it) {
+        size_t idx = it - names.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -299,7 +301,8 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
     int before_changed_count = 0;
     int after_changed_count = 0;
 
-    names.before_changed().connect([&](size_t idx) {
+    names.before_changed().connect([&](const auto & it) {
+        size_t idx = it - names.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -309,7 +312,8 @@ BOOST_AUTO_TEST_CASE(change_transformed) {
         BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Jane");
     });
 
-    names.after_changed().connect([&](size_t idx) {
+    names.after_changed().connect([&](const auto & it) {
+        size_t idx = it - names.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -361,7 +365,8 @@ BOOST_AUTO_TEST_CASE(change_transformed_borrowed) {
     int before_changed_count = 0;
     int after_changed_count = 0;
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).before_changed().connect([&](size_t idx) {
+    (vec | mv::ranges::transform(get_fn, set_fn)).before_changed().connect([&](const auto & it) {
+        size_t idx = it.base() - vec.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -371,7 +376,8 @@ BOOST_AUTO_TEST_CASE(change_transformed_borrowed) {
         BOOST_CHECK_EQUAL(std::as_const(vec)[1].first_name(), "Jane");
     });
 
-    (vec | mv::ranges::transform(get_fn, set_fn)).after_changed().connect([&](size_t idx) {
+    (vec | mv::ranges::transform(get_fn, set_fn)).after_changed().connect([&](const auto & it) {
+        size_t idx = it.base() - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);
@@ -434,7 +440,8 @@ BOOST_AUTO_TEST_CASE(transform_temporary_base) {
     BOOST_CHECK_EQUAL_COLLECTIONS(names.cbegin(), names.cend(), expected.begin(), expected.end());
 
     int changed_count = 0;
-    names.after_changed().connect([&](size_t idx) {
+    names.after_changed().connect([&](const auto & it) {
+        size_t idx = it - names.cbegin();
         ++changed_count;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(names.cbegin()[idx], "Alice");
@@ -460,7 +467,8 @@ BOOST_AUTO_TEST_CASE(transform_temporary_base_move) {
     BOOST_CHECK_EQUAL_COLLECTIONS(names2.cbegin(), names2.cend(), expected.begin(), expected.end());
 
     int changed_count = 0;
-    names2.after_changed().connect([&](size_t idx) {
+    names2.after_changed().connect([&](const auto & it) {
+        size_t idx = it - names2.cbegin();
         ++changed_count;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(names2.cbegin()[idx], "Alice");
@@ -487,7 +495,8 @@ BOOST_AUTO_TEST_CASE(transform_ref_base_copy) {
     BOOST_CHECK_EQUAL_COLLECTIONS(names2.cbegin(), names2.cend(), expected.begin(), expected.end());
 
     int changed_count = 0;
-    names2.after_changed().connect([&](size_t idx) {
+    names2.after_changed().connect([&](const auto & it) {
+        size_t idx = it - names2.cbegin();
         ++changed_count;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(names2.cbegin()[idx], "Alice");
@@ -556,8 +565,8 @@ BOOST_AUTO_TEST_CASE(move_base) {
     names.after_inserted().connect([&](size_t, size_t) { ++after_inserted_count; });
     names.before_erased().connect([&](size_t, size_t) { ++before_erased_count; });
     names.after_erased().connect([&](size_t, size_t) { ++after_erased_count; });
-    names.before_changed().connect([&](size_t) { ++before_changed_count; });
-    names.after_changed().connect([&](size_t) { ++after_changed_count; });
+    names.before_changed().connect([&](const auto &) { ++before_changed_count; });
+    names.after_changed().connect([&](const auto &) { ++after_changed_count; });
 
     vec.move(vec.cbegin() + 1, vec.cbegin() + 3, vec.cend());
 
@@ -632,14 +641,16 @@ BOOST_AUTO_TEST_CASE(double_transform) {
     int before_changed_count = 0;
     int after_changed_count = 0;
 
-    titles.before_changed().connect([&](size_t idx) {
+    titles.before_changed().connect([&](const auto & it) {
+        size_t idx = it - titles.cbegin();
         ++before_changed_count;
         BOOST_CHECK_EQUAL(after_changed_count, 0);
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(titles.cbegin()[idx], "Mr. Jane");
     });
 
-    titles.after_changed().connect([&](size_t idx) {
+    titles.after_changed().connect([&](const auto & it) {
+        size_t idx = it - titles.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(before_changed_count, 1);
         BOOST_CHECK_EQUAL(idx, 1);

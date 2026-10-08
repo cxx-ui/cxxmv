@@ -13,6 +13,7 @@
 #include "../signals.hpp"
 #include <concepts>
 #include <ranges>
+#include <type_traits>
 
 
 namespace mv::ranges {
@@ -25,8 +26,8 @@ concept observable = std::ranges::random_access_range<Range> && requires(const R
     { obj.after_inserted() } -> Signal<size_t, size_t>;
     { obj.before_erased() } -> Signal<size_t, size_t>;
     { obj.after_erased() } -> Signal<size_t, size_t>;
-    { obj.before_changed() } -> Signal<size_t>;
-    { obj.after_changed() } -> Signal<size_t>;
+    { obj.before_changed() } -> Signal<std::ranges::iterator_t<const std::remove_reference_t<Range>>>;
+    { obj.after_changed() } -> Signal<std::ranges::iterator_t<const std::remove_reference_t<Range>>>;
 };
 
 

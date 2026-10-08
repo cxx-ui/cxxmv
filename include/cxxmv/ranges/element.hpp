@@ -39,20 +39,20 @@ public:
             proj_{proj}, before_{before} {}
 
         /// Connects function to signal
-        signal_connection connect(std::function<void ()> fn) const {
+        signal_connection connect(const std::function<void ()> & fn) const {
             if (before_) {
-                return connect_to(proj_->base_.before_changed(), std::move(fn));
+                return connect_to(proj_->base_.before_changed(), fn);
             } else {
-                return connect_to(proj_->base_.after_changed(), std::move(fn));
+                return connect_to(proj_->base_.after_changed(), fn);
             }
         }
 
     private:
         /// Connects function to specified changed signal of range
         template <typename RangeSignal>
-        signal_connection connect_to(RangeSignal && sig, std::function<void ()> fn) const {
-            return sig.connect([handle = proj_->handle_, fn = std::move(fn)](size_t idx) {
-                if (handle.index() == idx) {
+        signal_connection connect_to(RangeSignal && sig, const std::function<void ()> & fn) const {
+            return sig.connect([handle = proj_->handle_, fn](const auto & it) {
+                if (handle == it) {
                     fn();
                 }
             });
@@ -80,7 +80,7 @@ public:
 
     /// Returns true if element was removed from range
     bool is_null() const {
-        return !handle_.is_valid();
+        return !static_cast<bool>(handle_);
     }
 
     /// Reads value of element

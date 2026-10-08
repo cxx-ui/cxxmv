@@ -41,12 +41,18 @@ public:
     /// Constructs list of positions for specified list of employees
     position_list(employee_list & elist):
     employees_{elist} {
-        employees_before_changed_con_ = employees_.before_changed().connect([this](size_t idx) {
-            for_each_position(idx, idx + 1, [this](size_t pos) { before_changed()(pos); });
+        employees_before_changed_con_ = employees_.before_changed().connect([this](const auto & it) {
+            size_t idx = it - employees_.cbegin();
+            for_each_position(idx, idx + 1, [this](size_t pos) {
+                before_changed()(cbegin() + pos);
+            });
         });
 
-        employees_after_changed_con_ = employees_.after_changed().connect([this](size_t idx) {
-            for_each_position(idx, idx + 1, [this](size_t pos) { after_changed()(pos); });
+        employees_after_changed_con_ = employees_.after_changed().connect([this](const auto & it) {
+            size_t idx = it - employees_.cbegin();
+            for_each_position(idx, idx + 1, [this](size_t pos) {
+                after_changed()(cbegin() + pos);
+            });
         });
 
         employees_before_erased_con_ = employees_.before_erased().connect(

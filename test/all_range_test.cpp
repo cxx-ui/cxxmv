@@ -40,7 +40,8 @@ BOOST_AUTO_TEST_CASE(all_ref_model) {
                                   expected.begin(), expected.end());
 
     bool changed_called = false;
-    vec2.after_changed().connect([&changed_called, &vec, &vec2](size_t idx) {
+    vec2.after_changed().connect([&changed_called, &vec, &vec2](const auto & it) {
+        size_t idx = it - vec.cbegin();
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(vec[1], 20);
@@ -62,7 +63,8 @@ BOOST_AUTO_TEST_CASE(all_ref_borrowed) {
     auto vec2 = vec | mv::ranges::all;
 
     bool changed_called = false;
-    (vec | mv::ranges::all).after_changed().connect([&changed_called, &vec, &vec2](size_t idx) {
+    (vec | mv::ranges::all).after_changed().connect([&changed_called, &vec, &vec2](const auto & it) {
+        size_t idx = it - vec.cbegin();
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(vec[1], 20);
@@ -99,7 +101,8 @@ BOOST_AUTO_TEST_CASE(all_temporary_model) {
                                   expected.begin(), expected.end());
 
     bool changed_called = false;
-    vec.after_changed().connect([&changed_called, &vec](size_t idx) {
+    vec.after_changed().connect([&changed_called, &vec](const auto & it) {
+        size_t idx = it - std::as_const(vec).begin();
         changed_called = true;
         BOOST_CHECK_EQUAL(idx, 1);
         BOOST_CHECK_EQUAL(std::as_const(vec).begin()[1], 20);

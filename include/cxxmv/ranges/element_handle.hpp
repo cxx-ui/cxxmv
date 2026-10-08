@@ -18,10 +18,9 @@ namespace mv::ranges {
 
 /// Element handle concept
 template <typename Handle>
-concept range_element_handle = std::copyable<Handle> &&
-                               requires(const Handle & ch) {
-    /// Returns true if handle is valid
-    { ch.is_valid() } -> std::convertible_to<bool>;
+concept range_element_handle = std::copyable<Handle> && requires(const Handle & ch) {
+    /// Converts to true if handle is valid
+    static_cast<bool>(ch);
 };
 
 

@@ -61,8 +61,8 @@ public:
             endRemoveRows();
         });
 
-        after_changed_con_ = rng_.after_changed().connect([this](size_t idx) {
-            int row = static_cast<int>(idx);
+        after_changed_con_ = rng_.after_changed().connect([this](const auto & it) {
+            int row = static_cast<int>(it - std::ranges::cbegin(rng_));
             emit dataChanged(index(row, 0), index(row, columnCount() - 1));
         });
 
