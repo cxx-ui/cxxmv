@@ -20,7 +20,7 @@
 
 
 /// Widget for viewing and editing employee
-template <mv::projectable_observable_as<employee> Model>
+template <mv::model_of<employee> Model>
 class employee_widget: public QWidget {
 public:
     /// Constructs widget with specified employee model and parent widget

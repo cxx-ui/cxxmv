@@ -680,7 +680,7 @@ BOOST_AUTO_TEST_CASE(element) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(std::is_same_v<decltype(std::declval<element_t>().get()), const std::string &>);
 
-    element_t name{names, vec.handle_at(1)};
+    element_t name{names, vec.begin() + 1};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -714,7 +714,7 @@ BOOST_AUTO_TEST_CASE(element) {
 }
 
 
-/// Tests setting handle of element model of ref transform projection
+/// Tests setting iterator of element model of ref transform projection
 BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
     auto names = vec | mv::ranges::ref_transform(get_first_name);
@@ -728,7 +728,7 @@ BOOST_AUTO_TEST_CASE(element_set) {
     int after_changed_count = 0;
     name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
-    name.set(vec.handle_at(2));
+    name.set(vec.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");
@@ -752,7 +752,7 @@ BOOST_AUTO_TEST_CASE(element_temporary_base) {
 
     using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
 
-    element_t name{names, names.handle_at(1)};
+    element_t name{names, names.begin() + 1};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int before_changed_count = 0;
@@ -773,29 +773,26 @@ BOOST_AUTO_TEST_CASE(element_temporary_base) {
 }
 
 
-/// Tests reading and mutating transformed elements by index and handle
-BOOST_AUTO_TEST_CASE(handle_get_mut) {
+/// Tests reading and mutating transformed elements by index and iterator
+BOOST_AUTO_TEST_CASE(iterator_get_mut) {
     mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
     auto names = vec | mv::ranges::ref_transform(get_first_name);
 
-    using names_t = std::decay_t<decltype(names)>;
-    static_assert(mv::ranges::observable_with_handle<names_t>);
-    static_assert(mv::ranges::model_with_handle<names_t>);
-    static_assert(std::is_same_v<decltype(names.get(names.handle_at(0))), const std::string &>);
+    static_assert(std::is_same_v<decltype(names.get(names.begin())), const std::string &>);
 
     BOOST_CHECK_EQUAL(names.get(1), "Jane");
 
-    auto h = names.handle_at(1);
-    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+    auto it = names.begin() + 1;
+    BOOST_CHECK_EQUAL(names.get(it), "Jane");
 
     vec.insert(vec.cbegin(), user{"Tom", "Green"});
-    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+    BOOST_CHECK_EQUAL(names.get(it), "Jane");
     BOOST_CHECK_EQUAL(names.get(2), "Jane");
 
-    names.mut(h) = "Alice";
+    names.mut(it) = "Alice";
     BOOST_CHECK_EQUAL(vec[2].first_name, "Alice");
     BOOST_CHECK_EQUAL(vec[2].last_name, "Doe");
-    BOOST_CHECK_EQUAL(names.get(h), "Alice");
+    BOOST_CHECK_EQUAL(names.get(it), "Alice");
 }
 
 

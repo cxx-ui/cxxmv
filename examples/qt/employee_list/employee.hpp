@@ -10,7 +10,6 @@
 #pragma once
 
 #include <cxxmv/vector.hpp>
-#include <cxxmv/ranges/element.hpp>
 #include <string>
 #include <utility>
 
@@ -60,13 +59,4 @@ private:
 
 /// List of employees
 using employee_list = mv::vector<employee>;
-
-
-/// Employee handle
-using employee_handle = employee_list::handle;
-
-
-/// Employee reference
-using employee_ref = decltype(std::declval<employee_list &>()
-    | mv::ranges::element(std::declval<employee_list &>().handle_at(0)));
 

@@ -56,11 +56,11 @@ public:
         case name_column:
             return QString::fromStdWString(pos.name());
         case employee_column:
-            if (pos.employee().is_null()) {
+            if (!pos.employee()) {
                 return QString{};
             }
 
-            return QString::fromStdWString(pos.employee().get().full_name());
+            return QString::fromStdWString(pos.employee()->full_name());
         default:
             return {};
         }

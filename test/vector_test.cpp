@@ -919,7 +919,7 @@ BOOST_AUTO_TEST_CASE(element_ctor) {
 
     mv::vector<int> vec{1, 2, 3};
 
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 1};
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 2);
     BOOST_CHECK_EQUAL(elem.get(), 2);
@@ -932,7 +932,7 @@ BOOST_AUTO_TEST_CASE(element_ctor) {
 /// Tests updating vector element model index when elements are inserted into vector
 BOOST_AUTO_TEST_CASE(element_insert) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -968,7 +968,7 @@ BOOST_AUTO_TEST_CASE(element_insert) {
 /// Tests updating vector element model index when elements are erased from vector
 BOOST_AUTO_TEST_CASE(element_erase) {
     mv::vector<int> vec{1, 2, 3, 4, 5};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(2)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 2};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -1015,7 +1015,7 @@ BOOST_AUTO_TEST_CASE(element_erase) {
 /// Tests updating vector element model index when elements are moved in vector
 BOOST_AUTO_TEST_CASE(element_move) {
     mv::vector<int> vec{0, 1, 2, 3, 4, 5};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(2)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 2};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -1053,7 +1053,7 @@ BOOST_AUTO_TEST_CASE(element_move) {
 /// Tests changed signal of vector element model when elements are changed in vector
 BOOST_AUTO_TEST_CASE(element_change) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -1092,7 +1092,7 @@ BOOST_AUTO_TEST_CASE(element_change) {
 /// Tests mutating vector element through vector element model
 BOOST_AUTO_TEST_CASE(element_mut) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -1120,7 +1120,7 @@ BOOST_AUTO_TEST_CASE(element_mut) {
 /// Tests moving vector element model
 BOOST_AUTO_TEST_CASE(element_move_ctor) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model<mv::vector<int>> elem{vec.handle_at(1)};
+    mv::ranges::element_model<mv::vector<int>> elem{vec.begin() + 1};
     mv::ranges::element_model<mv::vector<int>> elem2{std::move(elem)};
 
     int before_changed_count = 0;
@@ -1139,7 +1139,7 @@ BOOST_AUTO_TEST_CASE(element_move_ctor) {
 }
 
 
-/// Tests setting handle of vector element model
+/// Tests setting iterator of vector element model
 BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<int> vec{1, 2, 3};
     mv::ranges::element_model<mv::vector<int>> elem{};
@@ -1159,14 +1159,14 @@ BOOST_AUTO_TEST_CASE(element_set) {
     });
 
     expected = 3;
-    elem.set(vec.handle_at(2));
+    elem.set(vec.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 3);
 
     expected = 1;
-    elem.set(vec.handle_at(0));
+    elem.set(vec.begin());
     BOOST_CHECK_EQUAL(before_changed_count, 2);
     BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK_EQUAL(*elem, 1);
@@ -1193,38 +1193,56 @@ BOOST_AUTO_TEST_CASE(element_set) {
 }
 
 
-/// Tests reading and mutating vector elements by handle
-BOOST_AUTO_TEST_CASE(handle_get_mut) {
-    using vector_t = mv::vector<int>;
-
-    static_assert(mv::ranges::observable_with_handle<vector_t>);
-    static_assert(mv::ranges::model_with_handle<vector_t>);
-    static_assert(mv::ranges::range_element_handle<vector_t::handle>);
-
-    vector_t vec{1, 2, 3};
-    auto h = vec.handle_at(1);
-    BOOST_CHECK(h.is_valid());
-    BOOST_CHECK_EQUAL(h.index(), 1);
-    BOOST_CHECK_EQUAL(vec.get(h), 2);
+/// Tests reading and mutating vector elements by iterator
+BOOST_AUTO_TEST_CASE(iterator_get_mut) {
+    mv::vector<int> vec{1, 2, 3};
+    auto it = vec.begin() + 1;
+    BOOST_CHECK_EQUAL(vec.get(it), 2);
 
     int after_changed_count = 0;
-    vec.after_changed().connect([&](const auto & it) {
-        size_t idx = it - vec.cbegin();
+    vec.after_changed().connect([&](const auto & changed) {
+        size_t idx = changed - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(idx, 2);
     });
 
     vec.insert(vec.cbegin(), 0);
-    BOOST_CHECK_EQUAL(h.index(), 2);
-    BOOST_CHECK_EQUAL(vec.get(h), 2);
+    BOOST_CHECK_EQUAL(it - vec.begin(), 2);
+    BOOST_CHECK_EQUAL(vec.get(it), 2);
 
-    vec.mut(h) = 20;
+    vec.mut(it) = 20;
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(vec[2], 20);
-    BOOST_CHECK_EQUAL(vec.get(h), 20);
+    BOOST_CHECK_EQUAL(vec.get(it), 20);
+}
 
-    vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);
-    BOOST_CHECK(!h.is_valid());
+
+/// Tests that iterators keep pointing to the same elements after structural changes
+BOOST_AUTO_TEST_CASE(iterator_stability) {
+    mv::vector<int> vec{0, 1, 2, 3, 4, 5};
+    auto it = vec.begin() + 2;
+    auto cit = vec.cbegin() + 2;
+
+    vec.insert(vec.cbegin(), 10);
+    BOOST_CHECK(it == vec.begin() + 3);
+    BOOST_CHECK(cit == vec.cbegin() + 3);
+
+    std::vector<int> vals{20, 30};
+    vec.insert(vec.cbegin() + 1, vals.begin(), vals.end());
+    BOOST_CHECK(it == vec.begin() + 5);
+
+    vec.erase(vec.cbegin(), vec.cbegin() + 4);
+    BOOST_CHECK(it == vec.begin() + 1);
+
+    vec.move(vec.cbegin() + 1, vec.cbegin() + 2, vec.cend());
+    BOOST_CHECK(it == vec.end() - 1);
+
+    vec.move(vec.cend() - 1, vec.cend(), vec.cbegin());
+    BOOST_CHECK(it == vec.begin());
+    BOOST_CHECK(cit == vec.cbegin());
+
+    BOOST_CHECK_EQUAL(*it, 2);
+    BOOST_CHECK_EQUAL(*cit, 2);
 }
 
 

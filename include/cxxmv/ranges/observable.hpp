@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include "element_handle.hpp"
 #include "../signals.hpp"
 #include <concepts>
+#include <cstddef>
 #include <ranges>
 #include <type_traits>
 
@@ -49,27 +49,6 @@ concept observable_with_move = observable<Range> && requires(const Range & obj) 
     { obj.after_moved() } -> Signal<size_t, size_t, size_t>;
 };
 
-
-/// Observable range with element handle support
-template <typename Range>
-concept observable_with_handle = requires(Range & obj) {
-    /// Type of element handle for range
-    typename element_handle<Range>;
-
-    /// Returns handle of element at specified index
-    { obj.handle_at(std::declval<size_t>()) } -> std::convertible_to<element_handle<Range>>;
-
-    /// Returns value of element pointed by specified handle
-    { obj.get(std::declval<const element_handle<Range> &>()) };
-};
-
-
-/// Observable range with element handle support for type
-template <typename Range, typename Value>
-concept observable_with_handle_as = observable_with_handle<Range> && requires (Range & obj) {
-    /// Returns value of element pointed by specified handle
-    { obj.get(std::declval<const element_handle<Range> &>()) } -> std::convertible_to<Value>;
-};
 
 
 }

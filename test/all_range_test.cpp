@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec.handle_at(1)};
+    element_t elem{vec.begin() + 1};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int before_changed_count = 0;
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
-    element_t elem{vec.handle_at(1)};
+    element_t elem{vec.begin() + 1};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int before_changed_count = 0;
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
 }
 
 
-/// Tests setting handle of element model of all projection of model reference
+/// Tests setting iterator of element model of all projection of model reference
 BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     mv::vector<int> vec{1, 2, 3};
     auto vec2 = vec | mv::ranges::all;
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
     int after_changed_count = 0;
     elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
-    elem.set(vec.handle_at(2));
+    elem.set(vec.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*elem, 3);
@@ -220,50 +220,42 @@ BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
 }
 
 
-/// Tests reading and mutating elements by index and handle via all projection
+/// Tests reading and mutating elements by index and iterator via all projection
 /// of model reference
-BOOST_AUTO_TEST_CASE(all_ref_model_handle) {
+BOOST_AUTO_TEST_CASE(all_ref_model_iterator) {
     mv::vector<int> vec{1, 2, 3};
     auto vec2 = vec | mv::ranges::all;
 
-    using all_t = std::decay_t<decltype(vec2)>;
-    static_assert(mv::ranges::observable_with_handle<all_t>);
-    static_assert(mv::ranges::model_with_handle<all_t>);
-
     BOOST_CHECK_EQUAL(vec2.get(1), 2);
 
-    auto h = vec2.handle_at(1);
-    BOOST_CHECK_EQUAL(vec2.get(h), 2);
+    auto it = vec2.begin() + 1;
+    BOOST_CHECK_EQUAL(vec2.get(it), 2);
 
     vec.insert(vec.cbegin(), 0);
-    BOOST_CHECK_EQUAL(vec2.get(h), 2);
+    BOOST_CHECK_EQUAL(vec2.get(it), 2);
     BOOST_CHECK_EQUAL(vec2.get(2), 2);
 
-    vec2.mut(h) = 20;
+    vec2.mut(it) = 20;
     BOOST_CHECK_EQUAL(vec[2], 20);
-    BOOST_CHECK_EQUAL(vec2.get(h), 20);
+    BOOST_CHECK_EQUAL(vec2.get(it), 20);
 }
 
 
-/// Tests reading and mutating elements by index and handle via all projection
+/// Tests reading and mutating elements by index and iterator via all projection
 /// of temporary range model
-BOOST_AUTO_TEST_CASE(all_temporary_model_handle) {
+BOOST_AUTO_TEST_CASE(all_temporary_model_iterator) {
     auto vec = mv::vector<int>{1, 2, 3} | mv::ranges::all;
-
-    using all_t = std::decay_t<decltype(vec)>;
-    static_assert(mv::ranges::observable_with_handle<all_t>);
-    static_assert(mv::ranges::model_with_handle<all_t>);
 
     BOOST_CHECK_EQUAL(vec.get(1), 2);
 
-    auto h = vec.handle_at(1);
-    BOOST_CHECK_EQUAL(vec.get(h), 2);
+    auto it = vec.begin() + 1;
+    BOOST_CHECK_EQUAL(vec.get(it), 2);
 
     vec.mut(0) = 10;
-    vec.mut(h) = 20;
+    vec.mut(it) = 20;
     BOOST_CHECK_EQUAL(vec.get(0), 10);
     BOOST_CHECK_EQUAL(vec.get(1), 20);
-    BOOST_CHECK_EQUAL(vec.get(h), 20);
+    BOOST_CHECK_EQUAL(vec.get(it), 20);
 }
 
 

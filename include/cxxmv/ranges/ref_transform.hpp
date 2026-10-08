@@ -11,7 +11,6 @@
 
 #include "../ref_ransform.hpp"
 #include "all.hpp"
-#include "element_handle.hpp"
 #include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
@@ -70,6 +69,10 @@ public:
         const_iterator(base_const_iterator it, const GetRefFn & fn):
             it_{it}, fn_{fn} {}
 
+        /// Constructs iterator from base iterator and optional get reference function
+        const_iterator(base_const_iterator it, const std::optional<GetRefFn> & fn):
+            it_{it}, fn_{fn} {}
+
         /// Copy constructor
         const_iterator(const const_iterator &) = default;
 
@@ -123,75 +126,6 @@ public:
         std::optional<GetRefFn> fn_;        ///< Get reference function
     };
 
-    class iterator;
-
-    /// Handle of element in projection, contains handle of element in base range
-    class handle {
-    public:
-        /// Type of handle of element in base range
-        using base_handle = element_handle<Range>;
-
-        /// Constructs null handle
-        handle() = default;
-
-        /// Constructs handle with specified handle of element in base range
-        handle(const base_handle & base):
-            base_{base} {}
-
-        /// Constructs handle with specified handle of element in base range and get reference function
-        handle(const base_handle & base, const GetRefFn & fn):
-            base_{base}, fn_{fn} {}
-
-        /// Copy constructor
-        handle(const handle &) = default;
-
-        /// Copy assignment operator
-        handle & operator=(const handle & other) {
-            base_ = other.base_;
-            assign_fn(fn_, other.fn_);
-            return *this;
-        }
-
-        /// Converts to true if handle is valid
-        explicit operator bool() const {
-            return static_cast<bool>(base_);
-        }
-
-        /// Returns handle of element in base range
-        const base_handle & base() const {
-            return base_;
-        }
-
-        /// Returns iterator pointing to element
-        ref_transform_projection::iterator iterator() const {
-            assert(fn_ && "getting iterator of handle without function");
-            return {base_.iterator(), *fn_};
-        }
-
-        friend bool operator==(const handle & a, const handle & b) { return a.base_ == b.base_; }
-        friend auto operator<=>(const handle & a, const handle & b) { return a.base_ <=> b.base_; }
-
-        friend bool operator==(const handle & h, const ref_transform_projection::iterator & it) {
-            return h.base_ == it.base();
-        }
-
-        friend auto operator<=>(const handle & h, const ref_transform_projection::iterator & it) {
-            return h.base_ <=> it.base();
-        }
-
-        friend bool operator==(const handle & h, const const_iterator & it) {
-            return h.base_ == it.base();
-        }
-
-        friend auto operator<=>(const handle & h, const const_iterator & it) {
-            return h.base_ <=> it.base();
-        }
-
-    private:
-        base_handle base_;                  ///< Handle of element in base range
-        std::optional<GetRefFn> fn_;        ///< Get reference function
-    };
-
     /// Iterator over transformed elements that allows modification of elements with mutator
     class iterator {
     public:
@@ -201,6 +135,11 @@ public:
 
         /// Constructs invalid iterator
         iterator() = default;
+
+        /// Constructs iterator from base iterator without function, can be used only
+        /// for referencing elements in projection
+        iterator(base_iterator it):
+            it_{it} {}
 
         /// Constructs iterator from base iterator and get reference function
         iterator(base_iterator it, const GetRefFn & fn):
@@ -225,11 +164,6 @@ public:
 
         auto mut() const { return ref_transform_mutator{it_.mut(), *fn_}; }
 
-        /// Returns handle of element
-        ref_transform_projection::handle handle() const requires observable_with_handle<Range> {
-            return {it_.handle(), *fn_};
-        }
-
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
         iterator & operator--() { --it_; return *this; }
@@ -251,6 +185,9 @@ public:
 
         /// Returns base iterator
         const base_iterator & base() const { return it_; }
+
+        /// Converts to const iterator
+        operator const_iterator() const { return {it_, fn_}; }
 
     private:
         base_iterator it_;                  ///< Iterator in base range
@@ -340,13 +277,7 @@ public:
 
     /// Starts mutating of element pointed by iterator
     auto mut(const iterator & it) requires model<Range, base_value> {
-        auto idx = static_cast<size_t>(std::distance(begin(), it));
-        return ref_transform_mutator{this->base_.mut(idx), get_ref_fn_};
-    }
-
-    /// Returns handle of element at specified index
-    handle handle_at(size_t idx) requires observable_with_handle<Range> {
-        return {this->base_.handle_at(idx), get_ref_fn_};
+        return ref_transform_mutator{this->base_.mut(it.base()), get_ref_fn_};
     }
 
     /// Reads transformed element at specified index
@@ -354,19 +285,9 @@ public:
         return *(begin() + idx);
     }
 
-    /// Reads transformed element referenced by specified handle
-    template <typename Handle>
-    requires observable_with_handle<Range> && std::same_as<Handle, handle>
-    decltype(auto) get(const Handle & h) const {
-        return get_ref_fn_(this->base_.get(h.base()));
-    }
-
-    /// Starts mutating of transformed element referenced by specified handle
-    template <typename Handle>
-    requires model_with_handle<Range> &&
-             std::same_as<Handle, handle>
-    auto mut(const Handle & h) {
-        return ref_transform_mutator{this->base_.mut(h.base()), get_ref_fn_};
+    /// Reads transformed element pointed by specified iterator
+    decltype(auto) get(const iterator & it) const {
+        return get_ref_fn_(this->base_.get(it.base()));
     }
 
     /// Returns signal of base range emitted before items added
@@ -426,12 +347,12 @@ template <typename Range, typename GetRefFn>
 requires requires { sizeof(element_model<Range>); }
 class element_model<ref_transform_projection<Range, GetRefFn>> {
 public:
-    /// Type of element handle
-    using handle_type = ref_transform_projection<Range, GetRefFn>::handle;
+    /// Type of iterator pointing to element
+    using iterator = ref_transform_projection<Range, GetRefFn>::iterator;
 
-    /// Constructs model of element referenced by handle in base range projection
-    element_model(ref_transform_projection<Range, GetRefFn> & proj, const handle_type & handle = {}):
-        base_{handle.base()},
+    /// Constructs model of element in projection pointed by specified iterator
+    element_model(ref_transform_projection<Range, GetRefFn> & proj, const iterator & it = {}):
+        base_{proj.base_, it.base()},
         get_ref_fn_{proj.get_ref_fn_} {}
 
     /// Move constructor
@@ -462,9 +383,9 @@ public:
         return base_.index();
     }
 
-    /// Sets handle of element in base range. Emits changed signal.
-    void set(const handle_type & handle) {
-        base_.set(handle.base());
+    /// Sets iterator pointing to element in projection. Emits changed signal.
+    void set(const iterator & it) {
+        base_.set(it.base());
     }
 
     /// Returns before changed signal of element model in base range
@@ -480,14 +401,6 @@ public:
 private:
     element_model<Range> base_;                                   ///< Model of element in base range
     GetRefFn get_ref_fn_;                                   ///< Get reference function
-};
-
-
-/// Element handle type for ref transform projection
-template <typename Range, typename GetRefFn>
-requires requires { typename element_handle<Range>; }
-struct element_handle_impl<ref_transform_projection<Range, GetRefFn>> {
-    using type = ref_transform_projection<Range, GetRefFn>::handle;
 };
 
 

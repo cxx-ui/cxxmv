@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_SUITE(range_element_test)
 /// Tests element projection of vector element
 BOOST_AUTO_TEST_CASE(vector_element) {
     mv::vector<int> vec{1, 2, 3};
-    auto elem = vec | mv::ranges::element(vec.handle_at(1));
+    auto elem = vec | mv::ranges::element(vec.begin() + 1);
 
     using elem_t = std::decay_t<decltype(elem)>;
     static_assert(mv::model_projection<elem_t, int>);
@@ -67,23 +67,17 @@ BOOST_AUTO_TEST_CASE(vector_element) {
     BOOST_CHECK_EQUAL(before_changed_count, 2);
     BOOST_CHECK_EQUAL(after_changed_count, 2);
     BOOST_CHECK_EQUAL(vec[0], 30);
-
-    // erasing element makes projection null without emitting changed signals
-    vec.erase(vec.cbegin(), vec.cbegin() + 1);
-    BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
 }
 
 
 /// Tests creating element projection with all forms of element adaptor
 BOOST_AUTO_TEST_CASE(adaptor_forms) {
     mv::vector<int> vec{1, 2, 3};
-    auto h = vec.handle_at(2);
+    auto it = vec.begin() + 2;
 
-    auto elem1 = vec | mv::ranges::element(h);
-    auto elem2 = mv::ranges::element(vec, h);
-    auto elem3 = vec | mv::ranges::all | mv::ranges::element(h);
+    auto elem1 = vec | mv::ranges::element(it);
+    auto elem2 = mv::ranges::element(vec, it);
+    auto elem3 = vec | mv::ranges::all | mv::ranges::element(it);
 
     static_assert(std::is_same_v<decltype(elem1), decltype(elem2)>);
     static_assert(std::is_same_v<decltype(elem1), decltype(elem3)>);
@@ -105,7 +99,7 @@ BOOST_AUTO_TEST_CASE(transform_element) {
     auto get_fn = [](const test_user & u) { return u.first_name(); };
     auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
     auto name = vec | mv::ranges::transform(get_fn, set_fn)
-                    | mv::ranges::element(vec.handle_at(1));
+                    | mv::ranges::element(vec.begin() + 1);
 
     using name_t = std::decay_t<decltype(name)>;
     static_assert(mv::model_projection<name_t, std::string>);
@@ -137,7 +131,7 @@ BOOST_AUTO_TEST_CASE(transform_element_read_only) {
     mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
 
     auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto name = vec | mv::ranges::transform(get_fn) | mv::ranges::element(vec.handle_at(1));
+    auto name = vec | mv::ranges::transform(get_fn) | mv::ranges::element(vec.begin() + 1);
 
     using name_t = std::decay_t<decltype(name)>;
     static_assert(mv::observable_projection_as<name_t, std::string>);
@@ -164,7 +158,7 @@ BOOST_AUTO_TEST_CASE(ref_transform_element) {
 
     auto get_first_name = [](auto && u) -> auto & { return u.first_name(); };
     auto name = vec | mv::ranges::ref_transform(get_first_name)
-                    | mv::ranges::element(vec.handle_at(1));
+                    | mv::ranges::element(vec.begin() + 1);
 
     using name_t = std::decay_t<decltype(name)>;
     static_assert(mv::model_projection<name_t, std::string>);
@@ -186,10 +180,10 @@ BOOST_AUTO_TEST_CASE(ref_transform_element) {
 }
 
 
-/// Tests element projection constructed with null handle
+/// Tests element projection constructed with null iterator
 BOOST_AUTO_TEST_CASE(null_element) {
     mv::vector<int> vec{1, 2, 3};
-    auto elem = mv::ranges::element(vec, mv::vector<int>::handle{});
+    auto elem = mv::ranges::element(vec, mv::vector<int>::iterator{});
 
     BOOST_CHECK(elem.is_null());
 
@@ -216,7 +210,7 @@ BOOST_AUTO_TEST_CASE(element_copy) {
     mv::scoped_signal_connection after_con;
 
     {
-        auto elem = vec | mv::ranges::element(vec.handle_at(1));
+        auto elem = vec | mv::ranges::element(vec.begin() + 1);
         auto copy = elem;
         BOOST_CHECK_EQUAL(*copy, 2);
         before_con = copy.before_changed().connect([&] { ++before_changed_count; });

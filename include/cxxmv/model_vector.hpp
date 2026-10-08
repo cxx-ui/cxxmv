@@ -10,7 +10,6 @@
 #pragma once
 
 #include "observable.hpp"
-#include "ranges/element_handle.hpp"
 #include "signals.hpp"
 #include <algorithm>
 #include <cassert>
@@ -34,14 +33,8 @@ class model_vector {
         size_t idx;                 ///< Current index of object in vector
     };
 
-    /// Type of iterator in vector storage
-    using storage_iterator = std::vector<std::unique_ptr<entry>>::iterator;
-
-    /// Type of const iterator in vector storage
-    using storage_const_iterator = std::vector<std::unique_ptr<entry>>::const_iterator;
-
 public:
-    class handle;
+    class iterator;
 
     /// Const iterator over vector elements
     class const_iterator {
@@ -52,42 +45,53 @@ public:
         /// Constructs invalid iterator
         const_iterator() = default;
 
-        /// Constructs iterator pointing to specified position in vector storage
-        const_iterator(storage_const_iterator pos):
-            it_{pos} {}
+        /// Constructs iterator pointing to specified entry of vector
+        const_iterator(const model_vector * vec, const entry * ent):
+            vec_{vec}, ent_{ent} {}
 
-        const T & operator*() const { return *(*it_)->obj; }
-        const T & operator[](difference_type n) const { return *it_[n]->obj; }
-        const T * operator->() const { return (*it_)->obj.get(); }
+        const T & operator*() const { return *ent_->obj; }
+        const T & operator[](difference_type n) const { return *(*this + n); }
+        const T * operator->() const { return ent_->obj.get(); }
 
-        const_iterator & operator++() { ++it_; return *this; }
-        const_iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
-        const_iterator & operator--() { --it_; return *this; }
-        const_iterator operator--(int) { auto tmp = *this; --it_; return tmp; }
+        const_iterator & operator++() { return *this += 1; }
+        const_iterator operator++(int) { auto tmp = *this; *this += 1; return tmp; }
+        const_iterator & operator--() { return *this -= 1; }
+        const_iterator operator--(int) { auto tmp = *this; *this -= 1; return tmp; }
 
-        const_iterator & operator+=(difference_type n) { it_ += n; return *this; }
-        const_iterator & operator-=(difference_type n) { it_ -= n; return *this; }
+        const_iterator & operator+=(difference_type n) {
+            ent_ = vec_->entry_at(index() + n);
+            return *this;
+        }
+
+        const_iterator & operator-=(difference_type n) { return *this += -n; }
 
         friend const_iterator operator+(const_iterator it, difference_type n) { return it += n; }
         friend const_iterator operator+(difference_type n, const_iterator it) { return it += n; }
         friend const_iterator operator-(const_iterator it, difference_type n) { return it -= n; }
 
         friend difference_type operator-(const const_iterator & a, const const_iterator & b) {
-            return a.it_ - b.it_;
+            return a.index() - b.index();
         }
 
         friend bool operator==(const const_iterator & a, const const_iterator & b) {
-            return a.it_ == b.it_;
+            return a.ent_ == b.ent_;
         }
 
         friend auto operator<=>(const const_iterator & a, const const_iterator & b) {
-            return a.it_ <=> b.it_;
+            return a.index() <=> b.index();
         }
 
     private:
         friend class model_vector;
+        friend class iterator;
 
-        storage_const_iterator it_;         ///< Iterator in storage vector
+        /// Returns index of element
+        difference_type index() const {
+            return static_cast<difference_type>(ent_ ? ent_->idx : (vec_ ? vec_->size() : 0));
+        }
+
+        const model_vector * vec_ = nullptr;    ///< Pointer to vector model
+        const entry * ent_ = nullptr;           ///< Pointer to vector entry, null for end iterator
     };
 
     /// Vector element mutator
@@ -136,47 +140,51 @@ public:
         /// Constructs invalid iterator
         iterator() = default;
 
-        /// Constructs iterator pointing to specified position in vector
-        iterator(model_vector * vec, storage_iterator pos):
-            vec_{vec}, it_{pos} {}
+        /// Constructs iterator pointing to specified entry of vector
+        iterator(model_vector * vec, entry * ent):
+            vec_{vec}, ent_{ent} {}
 
         /// Starts mutating element
-        mutator mut() const { return mutator{(*it_)->obj.get()}; }
+        mutator mut() const { return mutator{ent_->obj.get()}; }
 
-        /// Returns handle of element
-        model_vector::handle handle() const {
-            return vec_->handle_at(static_cast<size_t>(it_ - vec_->storage_.begin()));
+        const T & operator*() const { return *ent_->obj; }
+        const T & operator[](difference_type n) const { return *(*this + n); }
+        const T * operator->() const { return ent_->obj.get(); }
+
+        iterator & operator++() { return *this += 1; }
+        iterator operator++(int) { auto tmp = *this; *this += 1; return tmp; }
+        iterator & operator--() { return *this -= 1; }
+        iterator operator--(int) { auto tmp = *this; *this -= 1; return tmp; }
+
+        iterator & operator+=(difference_type n) {
+            ent_ = vec_->entry_at(const_iterator{*this}.index() + n);
+            return *this;
         }
 
-        const T & operator*() const { return *(*it_)->obj; }
-        const T & operator[](difference_type n) const { return *it_[n]->obj; }
-        const T * operator->() const { return (*it_)->obj.get(); }
-
-        iterator & operator++() { ++it_; return *this; }
-        iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }
-        iterator & operator--() { --it_; return *this; }
-        iterator operator--(int) { auto tmp = *this; --it_; return tmp; }
-
-        iterator & operator+=(difference_type n) { it_ += n; return *this; }
-        iterator & operator-=(difference_type n) { it_ -= n; return *this; }
+        iterator & operator-=(difference_type n) { return *this += -n; }
 
         friend iterator operator+(iterator it, difference_type n) { return it += n; }
         friend iterator operator+(difference_type n, iterator it) { return it += n; }
         friend iterator operator-(iterator it, difference_type n) { return it -= n; }
 
         friend difference_type operator-(const iterator & a, const iterator & b) {
-            return a.it_ - b.it_;
+            return const_iterator{a} - const_iterator{b};
         }
 
-        friend bool operator==(const iterator & a, const iterator & b) { return a.it_ == b.it_; }
-        friend auto operator<=>(const iterator & a, const iterator & b) { return a.it_ <=> b.it_; }
+        friend bool operator==(const iterator & a, const iterator & b) { return a.ent_ == b.ent_; }
+
+        friend auto operator<=>(const iterator & a, const iterator & b) {
+            return const_iterator{a} <=> const_iterator{b};
+        }
 
         /// Converts to const iterator
-        operator const_iterator() const { return storage_const_iterator{it_}; }
+        operator const_iterator() const { return {vec_, ent_}; }
 
     private:
-        model_vector * vec_ = nullptr;     ///< Pointer to vector model
-        storage_iterator it_;               ///< Iterator in storage vector
+        friend class model_vector;
+
+        model_vector * vec_ = nullptr;      ///< Pointer to vector model
+        entry * ent_ = nullptr;             ///< Pointer to vector entry, null for end iterator
     };
 
     /// Constructs empty vector
@@ -192,22 +200,22 @@ public:
     bool empty() const { return storage_.empty(); }
 
     /// Returns const iterator pointing to the first element
-    const_iterator begin() const { return storage_.cbegin(); }
+    const_iterator begin() const { return {this, entry_at(0)}; }
 
     /// Returns const iterator pointing to one past the last element
-    const_iterator end() const { return storage_.cend(); }
+    const_iterator end() const { return {this, nullptr}; }
 
     /// Returns const iterator pointing to the first element
-    const_iterator cbegin() const { return storage_.cbegin(); }
+    const_iterator cbegin() const { return begin(); }
 
     /// Returns const iterator pointing to one past the last element
-    const_iterator cend() const { return storage_.cend(); }
+    const_iterator cend() const { return end(); }
 
     /// Returns iterator pointing to the first element
-    iterator begin() { return {this, storage_.begin()}; }
+    iterator begin() { return {this, entry_at(0)}; }
 
     /// Returns iterator pointing to one past the last element
-    iterator end() { return {this, storage_.end()}; }
+    iterator end() { return {this, nullptr}; }
 
     /// Returns size of vector
     size_t size() const { return storage_.size(); }
@@ -260,10 +268,10 @@ public:
             return;
         }
 
-        auto idx = std::distance(storage_.cbegin(), first.it_);
-        auto sz = std::distance(first, last);
+        auto idx = static_cast<size_t>(first.index());
+        auto sz = static_cast<size_t>(last - first);
         before_erased_(idx, sz);
-        storage_.erase(first.it_, last.it_);
+        storage_.erase(storage_.begin() + idx, storage_.begin() + idx + sz);
         update_indexes(idx, storage_.size());
         after_erased_(idx, sz);
     }
@@ -285,9 +293,9 @@ public:
             return;
         }
 
-        auto first_idx = std::distance(storage_.cbegin(), first.it_);
-        auto last_idx = std::distance(storage_.cbegin(), last.it_);
-        auto dest_idx = std::distance(storage_.cbegin(), dest.it_);
+        auto first_idx = static_cast<size_t>(first.index());
+        auto last_idx = static_cast<size_t>(last.index());
+        auto dest_idx = static_cast<size_t>(dest.index());
         auto sz = last_idx - first_idx;
 
         before_moved_(first_idx, sz, dest_idx);
@@ -317,6 +325,12 @@ public:
         return *storage_[idx]->obj;
     }
 
+    /// Returns const reference to element pointed by specified iterator
+    const T & get(const const_iterator & it) const {
+        assert(it.vec_ == this && it.ent_ && "invalid iterator of vector element");
+        return *it;
+    }
+
     /// Starts mutating element at specified index
     mutator mut(size_t idx) {
         return mutator{storage_[idx]->obj.get()};
@@ -324,26 +338,8 @@ public:
 
     /// Starts mutating element pointed by specified iterator
     mutator mut(const iterator & it) {
-        auto idx = static_cast<size_t>(std::distance(begin(), it));
-        return mut(idx);
-    }
-
-    /// Returns const reference to element referenced by handle
-    const T & get(const handle & h) const {
-        assert(h && h.vec_ == this && "invalid handle of vector element");
-        return *h.entry_->obj;
-    }
-
-    /// Starts mutating element referenced by handle
-    mutator mut(const handle & h) {
-        assert(h && h.vec_ == this && "invalid handle of vector element");
-        return mutator{h.entry_->obj.get()};
-    }
-
-    /// Returns handle of element at specified index
-    handle handle_at(size_t idx) {
-        assert(idx < size() && "invalid vector element index");
-        return {this, storage_[idx].get()};
+        assert(it.vec_ == this && it.ent_ && "invalid iterator of vector element");
+        return mutator{it.ent_->obj.get()};
     }
 
     /// Returns signal emitted before items added
@@ -375,24 +371,29 @@ private:
     const_iterator insert_object(const const_iterator & pos, std::unique_ptr<T> obj) {
         assert(obj && "inserting null object");
 
-        auto idx = static_cast<size_t>(std::distance(storage_.cbegin(), pos.it_));
+        auto idx = static_cast<size_t>(pos.index());
         before_inserted_(idx, 1);
 
         auto ent = std::make_unique<entry>(std::move(obj), idx);
 
         // connections are disconnected automatically when object is destroyed
         ent->obj->before_changed().connect([this, e = ent.get()] {
-            before_changed_(cbegin() + e->idx);
+            before_changed_(const_iterator{this, e});
         });
 
         ent->obj->after_changed().connect([this, e = ent.get()] {
-            after_changed_(cbegin() + e->idx);
+            after_changed_(const_iterator{this, e});
         });
 
-        auto res = storage_.insert(pos.it_, std::move(ent));
+        auto res = storage_.insert(storage_.begin() + idx, std::move(ent));
         update_indexes(idx + 1, storage_.size());
         after_inserted_(idx, 1);
-        return storage_const_iterator{res};
+        return {this, res->get()};
+    }
+
+    /// Returns pointer to entry at specified index or nullptr if index is out of range
+    entry * entry_at(std::ptrdiff_t idx) const {
+        return idx >= 0 && static_cast<size_t>(idx) < storage_.size() ? storage_[idx].get() : nullptr;
     }
 
     /// Updates stored indexes of entries in range [first, last)
@@ -412,73 +413,6 @@ private:
     mutable signal<void (const_iterator)> after_changed_;            ///< After changed signal
     mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
     mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
-};
-
-
-/// Object vector element handle
-template <observable T>
-class model_vector<T>::handle {
-public:
-    /// Constructs invalid handle
-    handle() = default;
-
-    /// Converts to true if handle is valid
-    explicit operator bool() const {
-        return entry_ != nullptr;
-    }
-
-    /// Returns reference to vector model
-    model_vector<T> & model() const {
-        return *vec_;
-    }
-
-    /// Returns iterator pointing to element
-    model_vector<T>::iterator iterator() const {
-        assert(entry_ && "getting iterator of invalid handle");
-        return {vec_, vec_->storage_.begin() + entry_->idx};
-    }
-
-    friend bool operator==(const handle & a, const handle & b) {
-        return a.entry_ == b.entry_;
-    }
-
-    friend auto operator<=>(const handle & a, const handle & b) {
-        assert(a.vec_ == b.vec_ && a.entry_ && b.entry_ && "comparing handles of different vectors");
-        return a.entry_->idx <=> b.entry_->idx;
-    }
-
-    friend bool operator==(const handle & h, const model_vector<T>::iterator & it) {
-        return h.entry_ && h.iterator() == it;
-    }
-
-    friend auto operator<=>(const handle & h, const model_vector<T>::iterator & it) {
-        return h.iterator() <=> it;
-    }
-
-    friend bool operator==(const handle & h, const model_vector<T>::const_iterator & it) {
-        return h.entry_ && model_vector<T>::const_iterator{h.iterator()} == it;
-    }
-
-    friend auto operator<=>(const handle & h, const model_vector<T>::const_iterator & it) {
-        return model_vector<T>::const_iterator{h.iterator()} <=> it;
-    }
-
-private:
-    friend class model_vector<T>;
-
-    /// Constructs handle of specified vector entry
-    handle(model_vector<T> * vec, entry * ent):
-    vec_{vec}, entry_{ent} {}
-
-    model_vector<T> * vec_ = nullptr;      ///< Pointer to vector model
-    entry * entry_ = nullptr;               ///< Pointer to vector entry
-};
-
-
-/// Element handle type for object vector model
-template <observable T>
-struct ranges::element_handle_impl<model_vector<T>> {
-    using type = model_vector<T>::handle;
 };
 
 

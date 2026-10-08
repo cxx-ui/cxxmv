@@ -685,7 +685,7 @@ BOOST_AUTO_TEST_CASE(element) {
     static_assert(mv::model_of<element_t, std::string>);
     static_assert(mv::nullable_observable_as<element_t, std::string>);
 
-    element_t name{names, vec.handle_at(1)};
+    element_t name{names, vec.begin() + 1};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -719,7 +719,7 @@ BOOST_AUTO_TEST_CASE(element) {
 }
 
 
-/// Tests setting handle of element model of transform projection
+/// Tests setting iterator of element model of transform projection
 BOOST_AUTO_TEST_CASE(element_set) {
     mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
 
@@ -735,7 +735,7 @@ BOOST_AUTO_TEST_CASE(element_set) {
     int after_changed_count = 0;
     name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
-    name.set(vec.handle_at(2));
+    name.set(vec.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");
@@ -764,7 +764,7 @@ BOOST_AUTO_TEST_CASE(element_read_only) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(!mv::model<element_t>);
 
-    element_t name{names, vec.handle_at(1)};
+    element_t name{names, vec.begin() + 1};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int before_changed_count = 0;
@@ -784,48 +784,61 @@ BOOST_AUTO_TEST_CASE(element_read_only) {
 }
 
 
-/// Tests reading and mutating transformed elements by index and handle
-BOOST_AUTO_TEST_CASE(handle_get_mut) {
+/// Tests reading and mutating transformed elements by index and iterator
+BOOST_AUTO_TEST_CASE(iterator_get_mut) {
     mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
 
     auto get_fn = [](const test_user & u) { return u.first_name(); };
     auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
     auto names = vec | mv::ranges::transform(get_fn, set_fn);
 
-    using names_t = std::decay_t<decltype(names)>;
-    static_assert(mv::ranges::observable_with_handle<names_t>);
-    static_assert(mv::ranges::model_with_handle<names_t>);
-
     BOOST_CHECK_EQUAL(names.get(1), "Jane");
 
-    auto h = names.handle_at(1);
-    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+    auto it = names.begin() + 1;
+    BOOST_CHECK_EQUAL(names.get(it), "Jane");
 
     vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
-    BOOST_CHECK_EQUAL(names.get(h), "Jane");
+    BOOST_CHECK_EQUAL(names.get(it), "Jane");
     BOOST_CHECK_EQUAL(names.get(2), "Jane");
+    BOOST_CHECK_EQUAL(*it, "Jane");
 
-    names.mut(h) = std::string{"Alice"};
+    names.mut(it) = std::string{"Alice"};
     BOOST_CHECK_EQUAL(vec[2].first_name(), "Alice");
     BOOST_CHECK_EQUAL(vec[2].last_name(), "Doe");
-    BOOST_CHECK_EQUAL(names.get(h), "Alice");
+    BOOST_CHECK_EQUAL(names.get(it), "Alice");
+
+    // iterator constructed from base iterator references the same element
+    BOOST_CHECK_EQUAL(names.get(vec.begin() + 2), "Alice");
 }
 
 
-/// Tests reading elements by index and handle via transform projection without set function
-BOOST_AUTO_TEST_CASE(handle_get_read_only) {
+/// Tests reading elements by index and iterator via transform projection without set function
+BOOST_AUTO_TEST_CASE(iterator_get_read_only) {
     mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
 
     auto get_fn = [](const test_user & u) { return u.first_name(); };
     auto names = vec | mv::ranges::transform(get_fn);
 
-    using names_t = std::decay_t<decltype(names)>;
-    static_assert(mv::ranges::observable_with_handle<names_t>);
-    static_assert(!mv::ranges::model_with_handle<names_t>);
-
-    auto h = names.handle_at(2);
+    auto it = names.begin() + 2;
     BOOST_CHECK_EQUAL(names.get(2), "Bob");
-    BOOST_CHECK_EQUAL(names.get(h), "Bob");
+    BOOST_CHECK_EQUAL(names.get(it), "Bob");
+}
+
+
+/// Tests comparison of iterators and const iterators of transform projection
+BOOST_AUTO_TEST_CASE(iterator_const_iterator_compare) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    auto it = names.begin() + 1;
+    BOOST_CHECK(it == std::as_const(names).begin() + 1);
+    BOOST_CHECK(it != std::as_const(names).begin());
+    BOOST_CHECK(it < std::as_const(names).begin() + 2);
+
+    std::decay_t<decltype(names)>::const_iterator cit = it;
+    BOOST_CHECK_EQUAL(*cit, "Jane");
 }
 
 

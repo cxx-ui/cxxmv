@@ -897,93 +897,79 @@ BOOST_AUTO_TEST_CASE(move_noop) {
 }
 
 
-/// Tests reading and mutating objects by handle
-BOOST_AUTO_TEST_CASE(handle_get_mut) {
-    static_assert(mv::ranges::observable_with_handle<int_vector>);
-    static_assert(mv::ranges::model_with_handle<int_vector>);
-    static_assert(mv::ranges::range_element_handle<int_vector::handle>);
-
+/// Tests reading and mutating objects by iterator
+BOOST_AUTO_TEST_CASE(iterator_get_mut) {
     int_vector vec;
     fill(vec, {1, 2, 3});
 
-    auto h = vec.handle_at(1);
-    BOOST_CHECK(static_cast<bool>(h));
-    BOOST_CHECK(!static_cast<bool>(int_vector::handle{}));
-    BOOST_CHECK_EQUAL(&h.model(), &vec);
-    BOOST_CHECK_EQUAL(vec.get(h).get(), 2);
+    auto it = vec.begin() + 1;
+    BOOST_CHECK_EQUAL(vec.get(it).get(), 2);
 
     int after_changed_count = 0;
-    vec.after_changed().connect([&](const auto & it) {
-        size_t idx = it - vec.cbegin();
+    vec.after_changed().connect([&](const auto & changed) {
+        size_t idx = changed - vec.cbegin();
         ++after_changed_count;
         BOOST_CHECK_EQUAL(idx, 2);
     });
 
     vec.emplace(vec.cbegin(), 0);
-    BOOST_CHECK(h.iterator() == vec.begin() + 2);
-    BOOST_CHECK_EQUAL(vec.get(h).get(), 2);
+    BOOST_CHECK(it == vec.begin() + 2);
+    BOOST_CHECK_EQUAL(vec.get(it).get(), 2);
 
-    vec.mut(h)->mut() = 20;
+    vec.mut(it)->mut() = 20;
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(vec[2].get(), 20);
-    BOOST_CHECK_EQUAL(vec.get(h).get(), 20);
+    BOOST_CHECK_EQUAL(vec.get(it).get(), 20);
 }
 
 
-/// Tests handle tracking object position on structural changes
-BOOST_AUTO_TEST_CASE(handle_tracking) {
+/// Tests that iterators keep pointing to the same objects after structural changes
+BOOST_AUTO_TEST_CASE(iterator_stability) {
     int_vector vec;
     fill(vec, {0, 1, 2, 3, 4, 5});
 
-    auto h = vec.handle_at(2);
+    auto it = vec.begin() + 2;
+    auto cit = vec.cbegin() + 2;
 
     vec.emplace(vec.cbegin(), 10);
-    BOOST_CHECK(h.iterator() == vec.begin() + 3);
+    BOOST_CHECK(it == vec.begin() + 3);
+    BOOST_CHECK(cit == vec.cbegin() + 3);
 
     vec.erase(vec.cbegin(), vec.cbegin() + 2);
-    BOOST_CHECK(h.iterator() == vec.begin() + 1);
+    BOOST_CHECK(it == vec.begin() + 1);
 
     vec.move(vec.cbegin() + 1, vec.cbegin() + 2, vec.cend());
-    BOOST_CHECK(h.iterator() == vec.end() - 1);
+    BOOST_CHECK(it == vec.end() - 1);
 
     vec.move(vec.cend() - 1, vec.cend(), vec.cbegin());
-    BOOST_CHECK(h.iterator() == vec.begin());
+    BOOST_CHECK(it == vec.begin());
+    BOOST_CHECK(cit == vec.cbegin());
 
-    BOOST_CHECK_EQUAL(vec.get(h).get(), 2);
+    BOOST_CHECK_EQUAL(it->get(), 2);
+    BOOST_CHECK_EQUAL(cit->get(), 2);
 }
 
 
-/// Tests comparison of handles and iterators
-BOOST_AUTO_TEST_CASE(handle_compare) {
+/// Tests comparison of iterators and const iterators
+BOOST_AUTO_TEST_CASE(iterator_compare) {
     int_vector vec;
     fill(vec, {1, 2, 3});
 
-    auto h0 = vec.handle_at(0);
-    auto h1 = vec.handle_at(1);
+    auto it0 = vec.begin();
+    auto it1 = vec.begin() + 1;
 
-    BOOST_CHECK(h1 == vec.handle_at(1));
-    BOOST_CHECK(h0 != h1);
-    BOOST_CHECK(h0 < h1);
-    BOOST_CHECK(h1 > h0);
+    BOOST_CHECK(it0 != it1);
+    BOOST_CHECK(it0 < it1);
+    BOOST_CHECK(it1 > it0);
 
-    BOOST_CHECK(h1 == vec.begin() + 1);
-    BOOST_CHECK(h1 != vec.begin());
-    BOOST_CHECK(h1 < vec.begin() + 2);
-    BOOST_CHECK(h1 > vec.begin());
-
-    BOOST_CHECK(h1 == vec.cbegin() + 1);
-    BOOST_CHECK(h1 != vec.cbegin());
-    BOOST_CHECK(h1 < vec.cbegin() + 2);
-    BOOST_CHECK(h1 > vec.cbegin());
-
-    BOOST_CHECK(int_vector::handle{} != vec.begin());
-    BOOST_CHECK(int_vector::handle{} != vec.cbegin());
-
-    BOOST_CHECK((vec.begin() + 1).handle() == h1);
-    BOOST_CHECK(h1.iterator() == vec.begin() + 1);
+    BOOST_CHECK(it1 == vec.cbegin() + 1);
+    BOOST_CHECK(it1 != vec.cbegin());
+    BOOST_CHECK(it1 < vec.cbegin() + 2);
+    BOOST_CHECK(it1 > vec.cbegin());
 
     vec.move(vec.cbegin(), vec.cbegin() + 1, vec.cend());
-    BOOST_CHECK(h0 > h1);
+    BOOST_CHECK(it0 > it1);
+    BOOST_CHECK_EQUAL(it0 - it1, 2);
 }
 
 
@@ -992,7 +978,7 @@ BOOST_AUTO_TEST_CASE(element) {
     int_vector vec;
     fill(vec, {1, 2, 3});
 
-    auto elem = vec | mv::ranges::element(vec.handle_at(1));
+    auto elem = vec | mv::ranges::element(vec.begin() + 1);
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(elem.get().get(), 2);
 

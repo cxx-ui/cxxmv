@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "element_handle.hpp"
 #include "element_model.hpp"
 #include "projection.hpp"
 #include <concepts>
@@ -79,28 +78,14 @@ public:
         return this->base_.mut(it);
     }
 
-    /// Returns handle of element at specified index
-    auto handle_at(size_t idx) requires observable_with_handle<Base> {
-        return this->base_.handle_at(idx);
-    }
-
     /// Reads element at specified index
     decltype(auto) get(size_t idx) const {
         return *(begin() + idx);
     }
 
-    /// Reads element referenced by specified handle
-    template <typename Handle>
-    requires observable_with_handle<Base> && std::same_as<Handle, element_handle<Base>>
-    decltype(auto) get(const Handle & h) const {
-        return this->base_.get(h);
-    }
-
-    /// Starts mutating of element referenced by specified handle
-    template <typename Handle>
-    requires model_with_handle<Base> && std::same_as<Handle, element_handle<Base>>
-    auto mut(const Handle & h) {
-        return this->base_.mut(h);
+    /// Reads element pointed by specified iterator
+    decltype(auto) get(const iterator & it) const {
+        return this->base_.get(it);
     }
 
     /// Returns signal of base range emitted before items added
@@ -143,17 +128,10 @@ class element_model<owning_projection<Base>>: public element_model<Base> {
 public:
     using element_model<Base>::element_model;
 
-    /// Constructs model of element in base range of projection referenced by specified handle
-    element_model(owning_projection<Base> & proj, const element_handle<Base> & handle = {}):
-        element_model<Base>{proj.base_, handle} {}
-};
-
-
-/// Element handle type for owning projection
-template <typename Base>
-requires requires { typename element_handle<Base>; }
-struct element_handle_impl<owning_projection<Base>> {
-    using type = element_handle<Base>;
+    /// Constructs model of element in base range of projection pointed by specified iterator
+    element_model(owning_projection<Base> & proj,
+                  const typename owning_projection<Base>::iterator & it = {}):
+        element_model<Base>{proj.base_, it} {}
 };
 
 

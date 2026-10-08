@@ -57,20 +57,4 @@ concept model_with_move = model<Range, Val> &&
 };
 
 
-/// Range model with element handle support
-template <typename Range>
-concept model_with_handle = observable_with_handle<Range> && requires(Range & obj) {
-    /// Starts mutating of element pointed by specified handle
-    { obj.mut(std::declval<const element_handle<Range> &>()) };
-};
-
-
-/// Range model with element handle support for type
-template <typename Range, typename Value>
-concept model_with_handle_of = model_with_handle<Range> && requires (Range & obj) {
-    /// Starts mutating of element pointed by specified handle
-    { obj.get(std::declval<const element_handle<Range> &>()) } -> mutator<Value>;
-};
-
-
 }

@@ -28,9 +28,9 @@
 class main_window: public QMainWindow {
 public:
     main_window() {
-        positions_.emplace_back(L"Manager", employees_, employees_.handle_at(1));
-        positions_.emplace_back(L"Developer", employees_, employees_.handle_at(0));
-        positions_.emplace_back(L"Tester", employees_, employees_.handle_at(3));
+        positions_.emplace_back(L"Manager", employees_, &employees_[1]);
+        positions_.emplace_back(L"Developer", employees_, &employees_[0]);
+        positions_.emplace_back(L"Tester", employees_, &employees_[3]);
 
         auto body = new QWidget;
         setCentralWidget(body);

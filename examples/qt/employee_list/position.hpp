@@ -12,7 +12,6 @@
 #include "employee.hpp"
 #include <cxxmv/model.hpp>
 #include <cxxmv/model_vector.hpp>
-#include <cxxmv/ranges/element.hpp>
 #include <cxxmv/signals.hpp>
 #include <cstddef>
 #include <string>
@@ -22,22 +21,32 @@
 /// Represents position with name and employee occupying it
 class position {
 public:
-    /// Constructs position with specified name and employee in list of employees
+    /// Constructs position with specified name and pointer to employee in list of employees
     position(std::wstring name,
              employee_list & employees,
-             const employee_handle & empl = {}):
-    name_{std::move(name)}, employees_{employees}, empl_{employees | mv::ranges::element(empl)} {
-        connect_employee();
+             const ::employee * empl = nullptr):
+    name_{std::move(name)}, employees_{employees}, empl_{empl} {
+        employees_before_changed_con_ = employees_.before_changed().connect([this](const auto & it) {
+            if (&*it == empl_) {
+                before_changed_();
+            }
+        });
+
+        employees_after_changed_con_ = employees_.after_changed().connect([this](const auto & it) {
+            if (&*it == empl_) {
+                after_changed_();
+            }
+        });
 
         employees_before_erased_con_ = employees_.before_erased().connect(
         [this](size_t idx, size_t count) {
-            if (empl_.is_null()) {
+            if (!empl_) {
                 return;
             }
 
             for (size_t i = idx; i < idx + count; ++i) {
-                if (&empl_.get() == &employees_[i]) {
-                    set_employee(employees_ | mv::ranges::element(employee_handle{}));
+                if (&employees_[i] == empl_) {
+                    set_employee(nullptr);
                     break;
                 }
             }
@@ -58,12 +67,12 @@ public:
         after_changed_();
     }
 
-    const auto & employee() const { return empl_; }
+    /// Returns pointer to employee occupying position or nullptr if position is vacant
+    const ::employee * employee() const { return empl_; }
 
-    void set_employee(employee_ref empl) {
+    void set_employee(const ::employee * empl) {
         before_changed_();
-        empl_ = std::move(empl);
-        connect_employee();
+        empl_ = empl;
         after_changed_();
     }
 
@@ -74,21 +83,15 @@ public:
     auto & after_changed() const { return after_changed_; }
 
 private:
-    /// Connects to changed signals of employee projection
-    void connect_employee() {
-        empl_before_changed_con_ = empl_.before_changed().connect([this] { before_changed_(); });
-        empl_after_changed_con_ = empl_.after_changed().connect([this] { after_changed_(); });
-    }
-
     std::wstring name_;                 ///< Name of position
     employee_list & employees_;         ///< Reference to list of employees
-    employee_ref empl_;                 ///< Employee occupying position
+    const ::employee * empl_;           ///< Pointer to employee occupying position
 
     mutable mv::signal<void ()> before_changed_;    ///< Before changed signal
     mutable mv::signal<void ()> after_changed_;     ///< After changed signal
 
-    mv::scoped_signal_connection empl_before_changed_con_;      ///< Connection to employee before_changed
-    mv::scoped_signal_connection empl_after_changed_con_;       ///< Connection to employee after_changed
+    mv::scoped_signal_connection employees_before_changed_con_; ///< Connection to employees before_changed
+    mv::scoped_signal_connection employees_after_changed_con_;  ///< Connection to employees after_changed
     mv::scoped_signal_connection employees_before_erased_con_;  ///< Connection to employees before_erased
 };
 
@@ -98,4 +101,3 @@ static_assert(mv::model<position>);
 
 /// List of positions
 using position_list = mv::model_vector<position>;
-

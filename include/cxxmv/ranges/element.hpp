@@ -12,13 +12,13 @@
 #include "../projection.hpp"
 #include "../signals.hpp"
 #include "all.hpp"
-#include "element_handle.hpp"
 #include "model.hpp"
 #include "observable.hpp"
 #include "projection.hpp"
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -28,9 +28,15 @@ namespace mv::ranges {
 
 /// Projection of single element of range
 template <typename Range>
-requires observable<Range> && observable_with_handle<Range>
+requires observable<Range>
 class element_projection: public mv::projection_base {
 public:
+    /// Type of iterator pointing to element
+    using iterator = std::ranges::iterator_t<Range>;
+
+    /// Type of const iterator over range elements
+    using const_iterator = std::ranges::iterator_t<const Range>;
+
     /// Signal emitted before or after element is changed
     class changed_signal {
     public:
@@ -51,8 +57,8 @@ public:
         /// Connects function to specified changed signal of range
         template <typename RangeSignal>
         signal_connection connect_to(RangeSignal && sig, const std::function<void ()> & fn) const {
-            return sig.connect([handle = proj_->handle_, fn](const auto & it) {
-                if (handle == it) {
+            return sig.connect([elem = const_iterator{proj_->it_}, fn](const auto & it) {
+                if (elem == it) {
                     fn();
                 }
             });
@@ -62,9 +68,9 @@ public:
         bool before_;                           ///< Is it before changed signal
     };
 
-    /// Constructs projection of element in specified range referenced by specified handle
-    element_projection(Range base, const element_handle<Range> & handle = {}):
-        base_{std::move(base)}, handle_{handle} {}
+    /// Constructs projection of element in specified range pointed by specified iterator
+    element_projection(Range base, const iterator & it = {}):
+        base_{std::move(base)}, it_{it} {}
 
     /// Copy constructor
     element_projection(const element_projection & other) = default;
@@ -78,15 +84,15 @@ public:
     /// Move assignment operator
     element_projection & operator=(element_projection && other) = default;
 
-    /// Returns true if element was removed from range
+    /// Returns true if projection does not point to element
     bool is_null() const {
-        return !static_cast<bool>(handle_);
+        return it_ == iterator{};
     }
 
     /// Reads value of element
     decltype(auto) get() const {
         assert(!is_null() && "reading null range element");
-        return base_.get(handle_);
+        return base_.get(it_);
     }
 
     /// Reads value of element
@@ -95,9 +101,9 @@ public:
     }
 
     /// Starts mutating of element
-    auto mut() requires model_with_handle<Range> {
+    auto mut() requires model<Range, std::ranges::range_value_t<Range>> {
         assert(!is_null() && "mutating null range element");
-        return base_.mut(handle_);
+        return base_.mut(it_);
     }
 
     /// Returns signal emitted before element is changed
@@ -111,36 +117,36 @@ public:
     }
 
 private:
-    Range base_;                        ///< Projection of range
-    element_handle<Range> handle_;      ///< Handle of element in range
+    Range base_;            ///< Projection of range
+    iterator it_;           ///< Iterator pointing to element in range
 };
 
 
-template <projectable_observable Range, typename Handle>
-element_projection(Range && r, const Handle &) -> element_projection<all_t<Range>>;
+template <projectable_observable Range, typename It>
+element_projection(Range && r, const It &) -> element_projection<all_t<Range>>;
 
 
-/// Closure of element adaptor that stores element handle
-template <typename Handle>
+/// Closure of element adaptor that stores iterator pointing to element
+template <typename It>
 class element_adaptor_closure {
 public:
-    /// Constructs closure with specified element handle
-    element_adaptor_closure(const Handle & handle):
-    handle_{handle} {}
+    /// Constructs closure with specified iterator
+    element_adaptor_closure(const It & it):
+    it_{it} {}
 
     /// Returns projection of element of specified range
     template <projectable_observable Range>
     auto operator()(Range && r) const {
-        return element_projection{std::forward<Range>(r), handle_};
+        return element_projection{std::forward<Range>(r), it_};
     }
 
 private:
-    Handle handle_;         ///< Element handle
+    It it_;                 ///< Iterator pointing to element
 };
 
 
-template <projectable_observable Range, typename Handle>
-auto operator|(Range && r, const element_adaptor_closure<Handle> & c) {
+template <projectable_observable Range, typename It>
+auto operator|(Range && r, const element_adaptor_closure<It> & c) {
     return c(std::forward<Range>(r));
 }
 
@@ -150,16 +156,16 @@ class element_adaptor {
 public:
     constexpr element_adaptor() = default;
 
-    /// Returns projection of element of specified range referenced by handle
-    template <projectable_observable Range, typename Handle>
-    auto operator()(Range && r, const Handle & handle) const {
-        return element_projection{std::forward<Range>(r), handle};
+    /// Returns projection of element of specified range pointed by iterator
+    template <projectable_observable Range, typename It>
+    auto operator()(Range && r, const It & it) const {
+        return element_projection{std::forward<Range>(r), it};
     }
 
-    /// Returns closure for creating projection of element referenced by handle
-    template <typename Handle>
-    auto operator()(const Handle & handle) const {
-        return element_adaptor_closure<Handle>{handle};
+    /// Returns closure for creating projection of element pointed by iterator
+    template <typename It>
+    auto operator()(const It & it) const {
+        return element_adaptor_closure<It>{it};
     }
 };
 
