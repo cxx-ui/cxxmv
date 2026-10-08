@@ -8,21 +8,13 @@
 
 
 #include "employee.hpp"
-#include "employee_table_model.hpp"
-#include "employee_widget.hpp"
+#include "employee_list_widget.hpp"
 #include "position.hpp"
-#include "position_table_model.hpp"
-#include "cxxmv/qt/selected_element_model.hpp"
-#include "cxxmv/ranges/transform.hpp"
-#include <cxxmv/vector.hpp>
-#include <cxxmv/qt/range_model.hpp>
+#include "position_list_widget.hpp"
 #include <QApplication>
+#include <QHBoxLayout>
 #include <QMainWindow>
-#include <QTableView>
-#include <QVBoxLayout>
 #include <iostream>
-#include <vector>
-#include <qtableview.h>
 
 
 class main_window: public QMainWindow {
@@ -36,40 +28,8 @@ public:
         setCentralWidget(body);
 
         auto layout = new QHBoxLayout{body};
-
-        employees_view_ = new QTableView;
-        employees_view_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        employees_view_->setSelectionMode(QAbstractItemView::SingleSelection);
-        employees_view_->setDragDropMode(QAbstractItemView::InternalMove);
-
-        // overwrite mode is enabled in table view by default, it drops rows on items
-        // instead of dropping them between items
-        employees_view_->setDragDropOverwriteMode(false);
-        employees_view_->setDropIndicatorShown(true);
-        layout->addWidget(employees_view_);
-
-        auto old_mdl = employees_view_->model();
-        employees_view_->setModel(&employees_model_);
-        delete old_mdl;
-
-        auto old_sel = employees_view_->selectionModel();
-        employees_view_->setSelectionModel(&sel_);
-        delete old_sel;
-
-        auto cont = new employee_widget{sel_.element()};
-        layout->addWidget(cont);
-
-        positions_view_ = new QTableView;
-        positions_view_->setSelectionBehavior(QAbstractItemView::SelectRows);
-        positions_view_->setSelectionMode(QAbstractItemView::SingleSelection);
-        positions_view_->setDragDropMode(QAbstractItemView::InternalMove);
-        positions_view_->setDragDropOverwriteMode(false);
-        positions_view_->setDropIndicatorShown(true);
-        layout->addWidget(positions_view_);
-
-        old_mdl = positions_view_->model();
-        positions_view_->setModel(&positions_model_);
-        delete old_mdl;
+        layout->addWidget(new employee_list_widget{employees_});
+        layout->addWidget(new position_list_widget{positions_, employees_});
     }
 
     ~main_window() {
@@ -86,18 +46,7 @@ private:
         {L"Tom", L"Green"}
     };
 
-    using employee_table_model_t = std::decay_t<decltype(employee_table_model{employees_})>;
-    employee_table_model_t employees_model_{employees_};
-
-    mv::qt::selected_element_model<employee_list> sel_{employees_, &employees_model_};
-
     position_list positions_;
-
-    using position_table_model_t = std::decay_t<decltype(position_table_model{positions_})>;
-    position_table_model_t positions_model_{positions_};
-
-    QTableView * employees_view_;
-    QTableView * positions_view_;
 };
 
 
