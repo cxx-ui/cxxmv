@@ -11,7 +11,6 @@
 
 #include "../ref_ransform.hpp"
 #include "all.hpp"
-#include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
 #include <cassert>
@@ -439,8 +438,6 @@ private:
     GetRefFn get_ref_fn_;                               ///< Get reference function
 
 private:
-    friend class element_model<ref_transform_projection>;
-
     /// Assigns function stored in optional
     template <typename Fn>
     static void assign_fn(std::optional<Fn> & dst, const std::optional<Fn> & src) {
@@ -456,69 +453,6 @@ private:
 template <projectable_observable Range, typename GetRefFn>
 ref_transform_projection(Range && r, GetRefFn) ->
     ref_transform_projection<all_t<Range>, GetRefFn>;
-
-
-/// Model of element in ref transform projection, defined if element model is defined
-/// for base range
-template <typename Range, typename GetRefFn>
-requires requires { sizeof(element_model<Range>); }
-class element_model<ref_transform_projection<Range, GetRefFn>> {
-public:
-    /// Type of iterator pointing to element
-    using iterator = ref_transform_projection<Range, GetRefFn>::iterator;
-
-    /// Constructs model of element in projection pointed by specified iterator
-    element_model(ref_transform_projection<Range, GetRefFn> & proj, const iterator & it = {}):
-        base_{proj.base_, it.base()},
-        get_ref_fn_{proj.get_ref_fn_} {}
-
-    /// Move constructor
-    element_model(element_model && other) = default;
-
-    /// Returns true if element was removed from base range
-    bool is_null() const {
-        return base_.is_null();
-    }
-
-    /// Reads transformed value of element
-    decltype(auto) get() const {
-        return get_ref_fn_(base_.get());
-    }
-
-    /// Reads transformed value of element
-    decltype(auto) operator*() const {
-        return get();
-    }
-
-    /// Starts mutating of transformed value of element
-    auto mut() {
-        return ref_transform_mutator{base_.mut(), get_ref_fn_};
-    }
-
-    /// Returns index of element in base range or SIZE_MAX if element is null
-    size_t index() const {
-        return base_.index();
-    }
-
-    /// Sets iterator pointing to element in projection. Emits changed signal.
-    void set(const iterator & it) {
-        base_.set(it.base());
-    }
-
-    /// Returns before changed signal of element model in base range
-    decltype(auto) before_changed() const {
-        return base_.before_changed();
-    }
-
-    /// Returns after changed signal of element model in base range
-    decltype(auto) after_changed() const {
-        return base_.after_changed();
-    }
-
-private:
-    element_model<Range> base_;                                   ///< Model of element in base range
-    GetRefFn get_ref_fn_;                                   ///< Get reference function
-};
 
 
 template <typename GetRefFn>

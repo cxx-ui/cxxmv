@@ -12,7 +12,6 @@
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/model.hpp>
 #include <cxxmv/observable.hpp>
-#include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/ranges/transform.hpp>
 #include <cxxmv/signals.hpp>
 #include <cxxmv/transform.hpp>
@@ -680,118 +679,6 @@ BOOST_AUTO_TEST_CASE(double_transform) {
 
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
-}
-
-
-/// Tests element model of transform projection
-BOOST_AUTO_TEST_CASE(element) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
-    auto names = vec | mv::ranges::transform(get_fn, set_fn);
-
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
-
-    static_assert(mv::model_of<element_t, std::string>);
-    static_assert(mv::nullable_observable_as<element_t, std::string>);
-
-    element_t name{names, vec.begin() + 1};
-    BOOST_CHECK(!name.is_null());
-    BOOST_CHECK_EQUAL(*name, "Jane");
-
-    int before_changed_count = 0;
-    name.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
-    BOOST_CHECK_EQUAL(*name, "Jane");
-    BOOST_CHECK_EQUAL(before_changed_count, 0);
-    BOOST_CHECK_EQUAL(after_changed_count, 0);
-
-    vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
-    BOOST_CHECK_EQUAL(*name, "Jane");
-    BOOST_CHECK_EQUAL(before_changed_count, 0);
-    BOOST_CHECK_EQUAL(after_changed_count, 0);
-
-    name.mut() = std::string{"Alice"};
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*name, "Alice");
-    BOOST_CHECK_EQUAL(vec[0].first_name(), "Alice");
-    BOOST_CHECK_EQUAL(vec[0].last_name(), "Doe");
-
-    vec.erase(vec.cbegin(), vec.cbegin() + 1);
-    BOOST_CHECK(name.is_null());
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
-}
-
-
-/// Tests setting iterator of element model of transform projection
-BOOST_AUTO_TEST_CASE(element_set) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
-
-    mv::ranges::element_model<std::decay_t<decltype(names)>> name{names};
-    BOOST_CHECK(name.is_null());
-
-    int before_changed_count = 0;
-    name.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    name.set(vec.begin() + 2);
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*name, "Bob");
-
-    vec.insert(vec.cbegin(), test_user{"Tom", "Green"});
-    BOOST_CHECK_EQUAL(*name, "Bob");
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-
-    name.set({});
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
-    BOOST_CHECK(name.is_null());
-}
-
-
-/// Tests element model of transform projection without set function
-BOOST_AUTO_TEST_CASE(element_read_only) {
-    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
-
-    auto get_fn = [](const test_user & u) { return u.first_name(); };
-    auto names = vec | mv::ranges::transform(get_fn);
-
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
-
-    static_assert(mv::nullable_observable_as<element_t, std::string>);
-    static_assert(!mv::model<element_t>);
-
-    element_t name{names, vec.begin() + 1};
-    BOOST_CHECK_EQUAL(*name, "Jane");
-
-    int before_changed_count = 0;
-    name.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    vec.mut(0) = test_user{"Tom", "Green"};
-    BOOST_CHECK_EQUAL(before_changed_count, 0);
-    BOOST_CHECK_EQUAL(after_changed_count, 0);
-
-    vec.mut(1) = test_user{"Alice", "White"};
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*name, "Alice");
 }
 
 

@@ -10,7 +10,6 @@
 #pragma once
 
 #include "projection.hpp"
-#include "ranges/element_model.hpp"
 #include "ranges/model.hpp"
 #include <algorithm>
 #include <compare>
@@ -292,7 +291,6 @@ public:
 
     private:
         friend class vector;
-        friend class ranges::element_model<vector>;
 
         vector * vec_ = nullptr;        ///< Pointer to vector model
         entry * ent_ = nullptr;         ///< Pointer to vector entry, null for end iterator
@@ -550,135 +548,6 @@ private:
 
     mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
     mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
-};
-
-
-/// Model of vector element. Becomes null when element is removed from vector.
-template <typename T>
-class ranges::element_model<vector<T>> {
-public:
-    /// Type of iterator pointing to element
-    using iterator = vector<T>::iterator;
-
-    /// Constructs model of element pointed by specified iterator
-    element_model(const iterator & it = {}):
-    it_{it} {
-        connect_signals();
-    }
-
-    /// Constructs model of element in specified vector pointed by specified iterator
-    element_model(vector<T> & vec, const iterator & it = {}):
-    element_model{it} {
-        assert((!it.vec_ || it.vec_ == &vec) && "iterator points to element of another vector");
-    }
-
-    /// Model is not copyable
-    element_model(const element_model &) = delete;
-
-    /// Move constructor
-    element_model(element_model && other):
-    it_{other.it_} {
-        assert(other.before_changed_.empty() && other.after_changed_.empty() &&
-               "moving model with signal connections");
-        connect_signals();
-    }
-
-    /// Model is not copy-assignable
-    element_model & operator=(const element_model &) = delete;
-
-    /// Model is not move-assignable
-    element_model & operator=(element_model &) = delete;
-
-    /// Returns true if element was removed from vector
-    bool is_null() const {
-        return it_.is_null();
-    }
-
-    /// Returns index of element in vector or SIZE_MAX if element is null
-    size_t index() const {
-        return is_null() ? SIZE_MAX : it_.ent_->idx;
-    }
-
-    /// Reads value of element
-    const T & get() const {
-        assert(!is_null() && "reading null vector element");
-        return *it_;
-    }
-
-    /// Reads value of element
-    const T & operator*() const {
-        return get();
-    }
-
-    /// Starts mutating of element
-    auto mut() {
-        assert(!is_null() && "mutating null vector element");
-        return it_.mut();
-    }
-
-    /// Sets iterator pointing to element in vector. Emits before and after changed signals.
-    void set(const iterator & it) {
-        before_changed_();
-        disconnect_signals();
-        it_ = it;
-        connect_signals();
-        after_changed_();
-    }
-
-    /// Returns signal emitted before element is changed
-    signal<void ()> & before_changed() const {
-        return before_changed_;
-    }
-
-    /// Returns signal emitted after element is changed
-    signal<void ()> & after_changed() const {
-        return after_changed_;
-    }
-
-private:
-    /// Connects to vector signals if element is not null
-    void connect_signals() {
-        if (is_null()) {
-            return;
-        }
-
-        auto & vec = *it_.vec_;
-
-        before_erased_con_ = vec.before_erased().connect([this](auto && first, auto && last) {
-            if (first <= it_ && it_ < last) {
-                before_changed_();
-                disconnect_signals();
-                it_ = {};
-                after_changed_();
-            }
-        });
-
-        before_changed_con_ = vec.before_changed().connect([this](const auto & it) {
-            if (it == it_) {
-                before_changed_();
-            }
-        });
-
-        after_changed_con_ = vec.after_changed().connect([this](const auto & it) {
-            if (it == it_) {
-                after_changed_();
-            }
-        });
-    }
-
-    /// Disconnects from vector signals
-    void disconnect_signals() {
-        before_erased_con_.disconnect();
-        before_changed_con_.disconnect();
-        after_changed_con_.disconnect();
-    }
-
-    iterator it_;                                   ///< Iterator pointing to vector element
-    mutable signal<void ()> before_changed_;        ///< Before changed signal
-    mutable signal<void ()> after_changed_;         ///< After changed signal
-    scoped_signal_connection before_erased_con_;    ///< Connection to vector before_erased signal
-    scoped_signal_connection before_changed_con_;   ///< Connection to vector before_changed signal
-    scoped_signal_connection after_changed_con_;    ///< Connection to vector after_changed signal
 };
 
 

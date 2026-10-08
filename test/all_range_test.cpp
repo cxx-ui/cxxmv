@@ -11,7 +11,6 @@
 #include <cxxmv/model.hpp>
 #include <cxxmv/observable.hpp>
 #include <cxxmv/ranges/all.hpp>
-#include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/signals.hpp>
 #include <cxxmv/transform.hpp>
 #include <cxxmv/vector.hpp>
@@ -115,110 +114,6 @@ BOOST_AUTO_TEST_CASE(all_temporary_model) {
     BOOST_CHECK_EQUAL(std::as_const(vec).begin()[1], 20);
 
     BOOST_CHECK(changed_called);
-}
-
-
-/// Tests element model of all projection of model reference
-BOOST_AUTO_TEST_CASE(all_ref_model_element) {
-    mv::vector<int> vec{1, 2, 3};
-    auto vec2 = vec | mv::ranges::all;
-
-    using all_t = std::decay_t<decltype(vec2)>;
-    using element_t = mv::ranges::element_model<all_t>;
-
-    static_assert(mv::model_of<element_t, int>);
-    static_assert(mv::nullable_observable_as<element_t, int>);
-
-    element_t elem{vec.begin() + 1};
-    BOOST_CHECK_EQUAL(*elem, 2);
-
-    int before_changed_count = 0;
-    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    vec.insert(vec.cbegin(), 0);
-    BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(before_changed_count, 0);
-    BOOST_CHECK_EQUAL(after_changed_count, 0);
-
-    elem.mut() = 20;
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(vec[2], 20);
-    BOOST_CHECK_EQUAL(std::as_const(vec2).begin()[2], 20);
-
-    vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);
-    BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
-}
-
-
-/// Tests element model of all projection of temporary range model
-BOOST_AUTO_TEST_CASE(all_temporary_model_element) {
-    auto vec = mv::vector<int>{1, 2, 3} | mv::ranges::all;
-
-    using all_t = std::decay_t<decltype(vec)>;
-    using element_t = mv::ranges::element_model<all_t>;
-
-    static_assert(mv::model_of<element_t, int>);
-    static_assert(mv::nullable_observable_as<element_t, int>);
-
-    element_t elem{vec.begin() + 1};
-    BOOST_CHECK_EQUAL(*elem, 2);
-
-    int before_changed_count = 0;
-    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    vec.mut(0) = 10;
-    BOOST_CHECK_EQUAL(before_changed_count, 0);
-    BOOST_CHECK_EQUAL(after_changed_count, 0);
-
-    vec.mut(1) = 20;
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*elem, 20);
-
-    elem.mut() = 30;
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
-    BOOST_CHECK_EQUAL(std::as_const(vec).begin()[1], 30);
-}
-
-
-/// Tests setting iterator of element model of all projection of model reference
-BOOST_AUTO_TEST_CASE(all_ref_model_element_set) {
-    mv::vector<int> vec{1, 2, 3};
-    auto vec2 = vec | mv::ranges::all;
-
-    mv::ranges::element_model<std::decay_t<decltype(vec2)>> elem{};
-    BOOST_CHECK(elem.is_null());
-
-    int before_changed_count = 0;
-    elem.before_changed().connect([&before_changed_count] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    elem.after_changed().connect([&after_changed_count] { ++after_changed_count; });
-
-    elem.set(vec.begin() + 2);
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*elem, 3);
-
-    vec.insert(vec.cbegin(), 0);
-    BOOST_CHECK_EQUAL(*elem, 3);
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-
-    elem.set({});
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
-    BOOST_CHECK(elem.is_null());
 }
 
 

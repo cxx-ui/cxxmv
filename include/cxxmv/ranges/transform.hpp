@@ -11,7 +11,6 @@
 
 #include "../transform.hpp"
 #include "all.hpp"
-#include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
 #include <cassert>
@@ -442,8 +441,6 @@ private:
     SetFn set_fn_;                                      ///< Set function
 
 private:
-    friend class element_model<transform_projection>;
-
     /// Assigns function stored in optional
     template <typename Fn>
     static void assign_fn(std::optional<Fn> & dst, const std::optional<Fn> & src) {
@@ -464,71 +461,6 @@ transform_projection(Range && r, GetFn, SetFn) ->
 template <projectable_observable Range, typename GetFn>
 transform_projection(Range && r, GetFn) ->
     transform_projection<all_t<Range>, GetFn, empty_set_fn>;
-
-
-/// Model of element in transform projection, defined if element model is defined
-/// for base range
-template <typename Range, typename GetFn, typename SetFn>
-requires requires { sizeof(element_model<Range>); }
-class element_model<transform_projection<Range, GetFn, SetFn>> {
-public:
-    /// Type of iterator pointing to element
-    using iterator = transform_projection<Range, GetFn, SetFn>::iterator;
-
-    /// Constructs model of element in projection pointed by specified iterator
-    element_model(transform_projection<Range, GetFn, SetFn> & proj, const iterator & it = {}):
-        base_{proj.base_, it.base()},
-        get_fn_{proj.get_fn_},
-        set_fn_{proj.set_fn_} {}
-
-    /// Move constructor
-    element_model(element_model && other) = default;
-
-    /// Returns true if element was removed from base range
-    bool is_null() const {
-        return base_.is_null();
-    }
-
-    /// Reads transformed value of element
-    decltype(auto) get() const {
-        return get_fn_(base_.get());
-    }
-
-    /// Reads transformed value of element
-    decltype(auto) operator*() const {
-        return get();
-    }
-
-    /// Starts mutating of transformed value of element
-    auto mut() requires (!std::same_as<SetFn, empty_set_fn>) {
-        return transform_mutator{base_.mut(), get_fn_, set_fn_};
-    }
-
-    /// Returns index of element in base range or SIZE_MAX if element is null
-    size_t index() const {
-        return base_.index();
-    }
-
-    /// Sets iterator pointing to element in projection. Emits changed signal.
-    void set(const iterator & it) {
-        base_.set(it.base());
-    }
-
-    /// Returns before changed signal of element model in base range
-    decltype(auto) before_changed() const {
-        return base_.before_changed();
-    }
-
-    /// Returns after changed signal of element model in base range
-    decltype(auto) after_changed() const {
-        return base_.after_changed();
-    }
-
-private:
-    element_model<Range> base_;                 ///< Model of element in base range
-    GetFn get_fn_;                              ///< Get function
-    SetFn set_fn_;                              ///< Set function
-};
 
 
 template <typename GetFn, typename SetFn>

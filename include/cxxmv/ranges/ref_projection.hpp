@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "element_model.hpp"
 #include "model.hpp"
 #include "projection.hpp"
 #include <concepts>
@@ -125,22 +124,7 @@ public:
     }
 
 private:
-    friend class element_model<ref_projection>;
-
     Base * base_;           ///< Pointer to base observable range
-};
-
-
-/// Model of element in ref projection, defined if element model is defined for base range
-template <typename Base>
-requires requires { sizeof(element_model<Base>); }
-class element_model<ref_projection<Base>>: public element_model<Base> {
-public:
-    using element_model<Base>::element_model;
-
-    /// Constructs model of element in base range of projection pointed by specified iterator
-    element_model(ref_projection<Base> & proj, const typename ref_projection<Base>::iterator & it = {}):
-        element_model<Base>{*proj.base_, it} {}
 };
 
 

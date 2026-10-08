@@ -25,9 +25,12 @@ namespace mv::qt {
 
 /// Item selection model that represents element selected in range model
 template <typename Range>
-requires requires { sizeof(ranges::element_model<Range>); }
+requires requires { sizeof(ranges::element_model<ranges::all_t<Range &>>); }
 class selected_element_model: public QItemSelectionModel {
 public:
+    /// Type of model of selected element
+    using element_type = ranges::element_model<ranges::all_t<Range &>>;
+
     /// Constructs selection model for specified item model and range
     selected_element_model(Range & rng, QAbstractItemModel * mdl, QObject * parent = nullptr):
     QItemSelectionModel{mdl, parent},
@@ -36,7 +39,7 @@ public:
         QObject::connect(this, &QItemSelectionModel::selectionChanged, [this] {
             size_t idx = selected_row();
             if (elem_.index() != idx) {
-                using iterator = std::ranges::iterator_t<Range>;
+                using iterator = element_type::iterator;
                 elem_.set(idx == SIZE_MAX ? iterator{} : std::ranges::begin(rng_) + idx);
             }
         });
@@ -45,7 +48,7 @@ public:
     }
 
     /// Returns model of selected element
-    ranges::element_model<Range> & element() {
+    element_type & element() {
         return elem_;
     }
 
@@ -76,7 +79,7 @@ private:
     }
 
     Range & rng_;                                   ///< Range of elements
-    ranges::element_model<Range> elem_;             ///< Element model for selected element
+    element_type elem_;                             ///< Element model for selected element
     scoped_signal_connection elem_changed_con_;     ///< Connection to element changed signal
 };
 

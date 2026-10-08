@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "element_model.hpp"
 #include "projection.hpp"
 #include <concepts>
 #include <cstddef>
@@ -115,23 +114,6 @@ public:
     decltype(auto) after_moved() const requires observable_with_move<Base> {
         return this->base_.after_moved();
     }
-
-private:
-    friend class element_model<owning_projection>;
-};
-
-
-/// Model of element in owning projection, defined if element model is defined for base range
-template <typename Base>
-requires requires { sizeof(element_model<Base>); }
-class element_model<owning_projection<Base>>: public element_model<Base> {
-public:
-    using element_model<Base>::element_model;
-
-    /// Constructs model of element in base range of projection pointed by specified iterator
-    element_model(owning_projection<Base> & proj,
-                  const typename owning_projection<Base>::iterator & it = {}):
-        element_model<Base>{proj.base_, it} {}
 };
 
 
