@@ -57,7 +57,7 @@ public:
     using value_type = std::remove_cvref_t<std::invoke_result_t<const GetFn &, const base_value &>>;
 
     /// Const iterator over transformed elements
-    class const_iterator {
+    class const_iterator: public mv::projection_base {
     public:
         using iterator_concept = std::random_access_iterator_tag;
         using value_type = transform_projection::value_type;
@@ -140,7 +140,7 @@ public:
     };
 
     /// Iterator over transformed elements that allows modification of elements with mutator
-    class iterator {
+    class iterator: public mv::projection_base {
     public:
         using iterator_concept = std::random_access_iterator_tag;
         using value_type = transform_projection::value_type;

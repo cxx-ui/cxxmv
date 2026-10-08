@@ -10,6 +10,7 @@
 #pragma once
 
 #include "observable.hpp"
+#include "projection.hpp"
 #include "signals.hpp"
 #include <algorithm>
 #include <cassert>
@@ -37,7 +38,7 @@ public:
     class iterator;
 
     /// Const iterator over vector elements
-    class const_iterator {
+    class const_iterator: public projection_base {
     public:
         using value_type = T;
         using difference_type = std::ptrdiff_t;
@@ -150,7 +151,7 @@ public:
 
 
     /// Iterator over vector elements
-    class iterator {
+    class iterator: public projection_base {
     public:
         using value_type = T;
         using difference_type = std::ptrdiff_t;

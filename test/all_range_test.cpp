@@ -13,6 +13,7 @@
 #include <cxxmv/ranges/all.hpp>
 #include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/signals.hpp>
+#include <cxxmv/transform.hpp>
 #include <cxxmv/vector.hpp>
 #include <concepts>
 #include <ranges>
@@ -315,6 +316,60 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_iterator_model) {
     it.mut() = 20;
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(it.get(), 20);
+}
+
+
+/// Tests transform projection with temporary iterator of all projection
+BOOST_AUTO_TEST_CASE(all_iterator_transform_temporary) {
+    mv::vector<int> vec{1, 2, 3};
+    auto vec2 = vec | mv::ranges::all;
+
+    auto make_val = [&vec2] {
+        auto it = vec2.begin() + 1;
+        return it | mv::transform(
+            [](int v) { return v * 10; },
+            [](int & v, int val) { v = val / 10; });
+    };
+
+    auto val = make_val();
+    BOOST_CHECK_EQUAL(val.get(), 20);
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = val.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1) = 3;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(val.get(), 30);
+
+    val.mut() = 40;
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[1], 4);
+}
+
+
+/// Tests transform projection with temporary const iterator of all projection
+BOOST_AUTO_TEST_CASE(all_const_iterator_transform_temporary) {
+    mv::vector<int> vec{1, 2, 3};
+    auto vec2 = vec | mv::ranges::all;
+
+    auto make_val = [&vec2] {
+        auto cit = std::as_const(vec2).begin() + 1;
+        return cit | mv::transform([](int v) { return v * 10; });
+    };
+
+    auto val = make_val();
+    BOOST_CHECK_EQUAL(val.get(), 20);
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = val.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1) = 3;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(val.get(), 30);
 }
 
 

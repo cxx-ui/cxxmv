@@ -45,7 +45,7 @@ public:
 
     /// Returns true if mutator is empty
     bool empty() const {
-        return mut_.emtpy();
+        return mut_.empty();
     }
 
     /// Returns reference to value

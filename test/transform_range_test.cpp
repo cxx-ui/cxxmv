@@ -15,6 +15,7 @@
 #include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/ranges/transform.hpp>
 #include <cxxmv/signals.hpp>
+#include <cxxmv/transform.hpp>
 #include <cxxmv/vector.hpp>
 #include <ranges>
 #include <string>
@@ -978,6 +979,65 @@ BOOST_AUTO_TEST_CASE(iterator_null) {
     BOOST_CHECK(names.end().is_null());
     BOOST_CHECK(names.cend().is_null());
     BOOST_CHECK(!names.begin().is_null());
+}
+
+
+/// Tests transform projection with temporary iterator of transform projection
+BOOST_AUTO_TEST_CASE(iterator_transform_temporary) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
+    auto names = vec | mv::ranges::transform(get_fn, set_fn);
+
+    auto make_name = [&names] {
+        auto it = names.begin() + 1;
+        return it | mv::transform(
+            [](const std::string & s) { return s + "!"; },
+            [](std::string & s, const std::string & val) { s = val; });
+    };
+
+    auto name = make_name();
+    BOOST_CHECK_EQUAL(name.get(), "Jane!");
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = name.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1) = test_user{"Kate", "Black"};
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(name.get(), "Kate!");
+
+    name.mut() = std::string{"Alice"};
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[1].first_name(), "Alice");
+}
+
+
+/// Tests transform projection with temporary const iterator of transform projection
+BOOST_AUTO_TEST_CASE(const_iterator_transform_temporary) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    auto make_name = [&names] {
+        auto cit = std::as_const(names).begin() + 1;
+        return cit | mv::transform([](const std::string & s) { return s + "!"; });
+    };
+
+    auto name = make_name();
+    BOOST_CHECK_EQUAL(name.get(), "Jane!");
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = name.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1) = test_user{"Kate", "Black"};
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(name.get(), "Kate!");
 }
 
 

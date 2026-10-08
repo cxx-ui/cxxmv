@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "projection.hpp"
 #include "ranges/element_model.hpp"
 #include "ranges/model.hpp"
 #include <algorithm>
@@ -46,7 +47,7 @@ public:
     class after_changed_signal;
 
     /// Const iterator over vector elements
-    class const_iterator {
+    class const_iterator: public projection_base {
     public:
         using value_type = T;
         using difference_type = std::ptrdiff_t;
@@ -229,7 +230,7 @@ public:
 
 
     /// Iterator over vector elements
-    class iterator {
+    class iterator: public projection_base {
     public:
         using value_type = T;
         using difference_type = std::ptrdiff_t;
@@ -590,7 +591,7 @@ public:
 
     /// Returns true if element was removed from vector
     bool is_null() const {
-        return it_.ent_ == nullptr;
+        return it_.is_null();
     }
 
     /// Returns index of element in vector or SIZE_MAX if element is null

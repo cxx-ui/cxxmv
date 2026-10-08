@@ -1190,4 +1190,58 @@ BOOST_AUTO_TEST_CASE(iterator_transform) {
 }
 
 
+/// Tests transform projection with temporary iterator
+BOOST_AUTO_TEST_CASE(iterator_transform_temporary) {
+    int_vector vec;
+    fill(vec, {1, 2, 3});
+
+    auto make_val = [&vec] {
+        auto it = vec.begin() + 1;
+        return it | mv::transform(
+            [](const int_model & m) { return m.get(); },
+            [](int_model & m, int v) { m.mut() = v; });
+    };
+
+    auto val = make_val();
+    BOOST_CHECK_EQUAL(val.get(), 2);
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = val.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1)->mut() = 10;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(val.get(), 10);
+
+    val.mut() = 20;
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[1].get(), 20);
+}
+
+
+/// Tests transform projection with temporary const iterator
+BOOST_AUTO_TEST_CASE(const_iterator_transform_temporary) {
+    int_vector vec;
+    fill(vec, {1, 2, 3});
+
+    auto make_val = [&vec] {
+        auto cit = vec.cbegin() + 1;
+        return cit | mv::transform([](const int_model & m) { return m.get(); });
+    };
+
+    auto val = make_val();
+    BOOST_CHECK_EQUAL(val.get(), 2);
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = val.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(1)->mut() = 10;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(val.get(), 10);
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
