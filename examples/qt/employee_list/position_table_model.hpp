@@ -91,9 +91,7 @@ public:
 
         Qt::ItemFlags res = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
         if constexpr (!is_read_only) {
-            if (idx.column() == name_column) {
-                res |= Qt::ItemIsEditable;
-            }
+            res |= Qt::ItemIsEditable;
         }
 
         if constexpr (supports_move) {

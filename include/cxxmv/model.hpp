@@ -25,9 +25,6 @@ concept mutator = requires(const Mutator & mut) {
     /// Getting reference to value
     { mut.ref() } -> std::convertible_to<Value &>;
 
-    /// Assigning to value by reference
-    { mut.ref() = std::declval<Value>() };
-
     /// Getting pointer to value
     { mut.ptr() } -> std::convertible_to<Value *>;
 

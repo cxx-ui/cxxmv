@@ -35,10 +35,11 @@ concept observable = std::ranges::random_access_range<Range> && requires(Range o
 };
 
 
-/// Concept for observable range values of which can be obtained and used to construct another type
+/// Concept for observable range elements of which can be read as const reference to specified type
 template <typename Range, typename Val>
 concept observable_as = observable<Range> &&
-                        std::constructible_from<Val, std::ranges::range_value_t<Range>>;
+                        std::convertible_to<std::ranges::range_reference_t<const Range>,
+                                            const Val &>;
 
 
 /// Borrowed observable range is an observable range that can be safely taken/stored by value

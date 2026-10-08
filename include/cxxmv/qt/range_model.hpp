@@ -111,6 +111,18 @@ public:
         return parent.isValid() ? 0 : static_cast<int>(std::ranges::size(rng_));
     }
 
+    /// Returns iterator pointing to element of item with specified index
+    auto at(const QModelIndex & idx) {
+        assert(idx.isValid() && idx.model() == this && "invalid item index");
+        return std::ranges::begin(rng_) + idx.row();
+    }
+
+    /// Returns const iterator pointing to element of item with specified index
+    auto at(const QModelIndex & idx) const {
+        assert(idx.isValid() && idx.model() == this && "invalid item index");
+        return std::ranges::begin(rng_) + idx.row();
+    }
+
     /// Removes rows from model
     bool removeRows(int row, int count, const QModelIndex & parent = {}) override {
         if constexpr (supports_erase) {
@@ -154,7 +166,6 @@ public:
         }
     }
 
-protected:
     /// Returns range
     const Range & range() const { return rng_; }
 

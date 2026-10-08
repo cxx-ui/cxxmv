@@ -10,6 +10,7 @@
 #pragma once
 
 #include "employee.hpp"
+#include "employee_selection_delegate.hpp"
 #include "position.hpp"
 #include "position_table_model.hpp"
 #include <QHBoxLayout>
@@ -51,6 +52,9 @@ public:
         auto old_mdl = view_->model();
         view_->setModel(&model_);
         delete old_mdl;
+
+        view_->setItemDelegateForColumn(model_t::employee_column,
+                                        new employee_selection_delegate{model_, employees_, view_});
 
         auto buttons_layout = new QHBoxLayout;
         layout->addLayout(buttons_layout);
