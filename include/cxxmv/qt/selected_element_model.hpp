@@ -37,11 +37,11 @@ public:
     rng_{rng},
     elem_{rng} {
         QObject::connect(this, &QItemSelectionModel::selectionChanged, [this] {
-            size_t idx = selected_row();
-            if (elem_.index() != idx) {
-                using iterator = element_type::iterator;
-                elem_.set(idx == SIZE_MAX ? iterator{} : std::ranges::begin(rng_) + idx);
-            }
+            auto rows = selectedRows();
+            auto it = rows.size() == 1 ?
+                 std::ranges::begin(rng_) + static_cast<size_t>(rows.front().row()) :
+                 std::ranges::end(rng_);
+            elem_.set(it);
         });
 
         elem_changed_con_ = elem_.after_changed().connect([this] { update_selection(); });
@@ -53,25 +53,14 @@ public:
     }
 
 private:
-    /// Returns selected row or SIZE_MAX if there is no selected row
-    /// or more than one row is selected
-    size_t selected_row() const {
-        QModelIndexList rows = selectedRows();
-        return rows.size() == 1 ? static_cast<size_t>(rows.front().row()) : SIZE_MAX;
-    }
-
     /// Updates selected row and current row in QItemSelectionModel
     void update_selection() {
-        size_t idx = elem_.index();
-        if (selected_row() == idx) {
-            return;
-        }
-
-        if (idx == SIZE_MAX) {
+        if (elem_.is_null()) {
             clearCurrentIndex();
             clearSelection();
         } else {
-            QModelIndex mdl_idx = model()->index(static_cast<int>(idx), 0);
+            auto row = elem_.iterator() - std::ranges::begin(rng_);
+            QModelIndex mdl_idx = model()->index(static_cast<int>(row), 0);
             assert(mdl_idx.isValid() && "element index is out of range of item model");
             setCurrentIndex(mdl_idx, QItemSelectionModel::ClearAndSelect |
                                      QItemSelectionModel::Rows);

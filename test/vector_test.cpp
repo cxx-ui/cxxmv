@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(emplace) {
 
     auto it = vec.emplace(vec.begin() + 1, "Bob", "Brown");
 
-    BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), it), 1);
+    BOOST_CHECK_EQUAL(std::distance(vec.begin(), it), 1);
 
     BOOST_REQUIRE_EQUAL(vec.size(), 3);
     BOOST_CHECK_EQUAL(vec[0].first_name(), "John");
@@ -367,7 +367,7 @@ BOOST_AUTO_TEST_CASE(emplace_back) {
 
     auto it = vec.emplace_back("Bob", "Brown");
 
-    BOOST_CHECK_EQUAL(std::distance(vec.cbegin(), it), 2);
+    BOOST_CHECK_EQUAL(std::distance(vec.begin(), it), 2);
 
     BOOST_REQUIRE_EQUAL(vec.size(), 3);
     BOOST_CHECK_EQUAL(vec[0].first_name(), "John");

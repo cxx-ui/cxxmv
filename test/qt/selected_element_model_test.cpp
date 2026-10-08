@@ -83,19 +83,19 @@ BOOST_AUTO_TEST_CASE(change_current_row) {
 
     elem.after_changed().connect([&] {
         ++after_changed_count;
-        BOOST_CHECK_EQUAL(elem.index(), 1);
+        BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
         BOOST_CHECK_EQUAL(*elem, 20);
     });
 
     selection.setCurrentIndex(model.index(1, 0), QItemSelectionModel::ClearAndSelect);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(elem.index(), 1);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
     BOOST_CHECK_EQUAL(*elem, 20);
 }
 
 
-/// Tests clearing selection in selection model, current row is not changed
+/// Tests clearing selection in selection model
 BOOST_AUTO_TEST_CASE(clear_selection) {
     auto & elem = selection.element();
     selection.setCurrentIndex(model.index(1, 0), QItemSelectionModel::ClearAndSelect);
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
 
     elem.before_changed().connect([&] {
         ++before_changed_count;
-        BOOST_CHECK_EQUAL(elem.index(), 1);
+        BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
         BOOST_CHECK_EQUAL(*elem, 20);
     });
 
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(clear_selection) {
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK(elem.is_null());
-    BOOST_CHECK_EQUAL(current_row(), 1);
+    BOOST_CHECK_EQUAL(current_row(), -1);
 }
 
 
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(insert_before) {
     elem.set(vec.begin() + 1);
 
     vec.insert(vec.cbegin(), 5);
-    BOOST_CHECK_EQUAL(elem.index(), 2);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 2);
     BOOST_CHECK_EQUAL(current_row(), 2);
     BOOST_CHECK_EQUAL(*elem, 20);
 }
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(move_selected) {
     elem.set(vec.begin() + 2);
 
     vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
-    BOOST_CHECK_EQUAL(elem.index(), 0);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 0);
     BOOST_CHECK_EQUAL(current_row(), 0);
     BOOST_CHECK_EQUAL(*elem, 30);
 }

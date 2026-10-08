@@ -92,47 +92,38 @@ public:
     }
 
 private:
-    /// Returns index of selected employee or SIZE_MAX if there is no selected employee
-    size_t selected() {
-        return sel_.element().index();
-    }
-
     /// Adds new employee after selected one or at the end of list and selects it
     void add() {
-        size_t idx = selected() == SIZE_MAX ? employees_.size() : selected() + 1;
-        employees_.emplace(employees_.cbegin() + idx, L"New", L"Employee");
-        sel_.element().set(employees_.begin() + idx);
+        auto & elem = sel_.element();
+        auto pos = elem.is_null() ? employees_.cend() : elem.iterator() + 1;
+        elem.set(employees_.emplace(pos, L"New", L"Employee"));
     }
 
     /// Removes selected employee
     void remove() {
-        size_t idx = selected();
-        employees_.erase(employees_.cbegin() + idx, employees_.cbegin() + idx + 1);
+        auto it = sel_.element().iterator();
+        employees_.erase(it, it + 1);
     }
 
     /// Moves selected employee one position up
     void move_up() {
-        size_t idx = selected();
-        employees_.move(employees_.cbegin() + idx,
-                        employees_.cbegin() + idx + 1,
-                        employees_.cbegin() + idx - 1);
+        auto it = sel_.element().iterator();
+        employees_.move(it, it + 1, it - 1);
     }
 
     /// Moves selected employee one position down
     void move_down() {
-        size_t idx = selected();
-        employees_.move(employees_.cbegin() + idx,
-                        employees_.cbegin() + idx + 1,
-                        employees_.cbegin() + idx + 2);
+        auto it = sel_.element().iterator();
+        employees_.move(it, it + 1, it + 2);
     }
 
     /// Enables or disables buttons depending on selected employee
     void update_buttons() {
-        size_t idx = selected();
-        bool has_sel = idx != SIZE_MAX;
+        auto & elem = sel_.element();
+        bool has_sel = !elem.is_null();
         remove_button_->setEnabled(has_sel);
-        up_button_->setEnabled(has_sel && idx > 0);
-        down_button_->setEnabled(has_sel && idx + 1 < employees_.size());
+        up_button_->setEnabled(has_sel && elem.iterator() != employees_.begin());
+        down_button_->setEnabled(has_sel && elem.iterator() + 1 != employees_.end());
     }
 
     using model_t = std::decay_t<decltype(employee_table_model{std::declval<employee_list &>()})>;

@@ -389,7 +389,7 @@ public:
 
     /// Constructs and inserts element at specified position
     template <typename ... Args>
-    const_iterator emplace(const const_iterator & pos, Args && ... args) {
+    iterator emplace(const const_iterator & pos, Args && ... args) {
         auto idx = static_cast<size_t>(pos.index());
         before_inserted_(pos, 1);
         auto res = storage_.insert(storage_.begin() + idx,
@@ -401,7 +401,7 @@ public:
 
     /// Constructs and inserts element at the end of vector
     template <typename ... Args>
-    const_iterator emplace_back(Args && ... args) {
+    iterator emplace_back(Args && ... args) {
         return emplace(end(), std::forward<Args>(args)...);
     }
 

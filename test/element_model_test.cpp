@@ -53,11 +53,10 @@ BOOST_AUTO_TEST_CASE(vector_ctor) {
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 2);
     BOOST_CHECK_EQUAL(elem.get(), 2);
-    BOOST_CHECK_EQUAL(elem.index(), 1);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
 
     mv::ranges::element_model null_elem{vec};
     BOOST_CHECK(null_elem.is_null());
-    BOOST_CHECK_EQUAL(null_elem.index(), SIZE_MAX);
 }
 
 
@@ -80,20 +79,20 @@ BOOST_AUTO_TEST_CASE(vector_insert) {
 
     vec.insert(vec.cbegin(), 4);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(elem.index(), 2);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 2);
 
     std::vector<int> vals{5, 6};
     vec.insert(vec.cbegin() + 2, vals.begin(), vals.end());
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(elem.index(), 4);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 4);
 
     vec.emplace(vec.cbegin(), 7);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(elem.index(), 5);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 5);
 
     vec.insert(vec.cend(), 8);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(elem.index(), 5);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 5);
 
     BOOST_CHECK_EQUAL(after_inserted_count, 4);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
@@ -132,7 +131,7 @@ BOOST_AUTO_TEST_CASE(vector_erase) {
 
     vec.erase(vec.cbegin(), vec.cbegin() + 1);
     BOOST_CHECK_EQUAL(*elem, 3);
-    BOOST_CHECK_EQUAL(elem.index(), 1);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
     BOOST_CHECK_EQUAL(after_changed_count, 0);
 
@@ -180,7 +179,7 @@ BOOST_AUTO_TEST_CASE(vector_move) {
 
     vec.move(vec.cbegin() + 5, vec.cbegin() + 6, vec.cbegin() + 3);
     BOOST_CHECK_EQUAL(*elem, 2);
-    BOOST_CHECK_EQUAL(vec[elem.index()], 2);
+    BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 2);
 
     BOOST_CHECK_EQUAL(after_moved_count, 5);
     BOOST_CHECK_EQUAL(before_changed_count, 0);
@@ -252,33 +251,6 @@ BOOST_AUTO_TEST_CASE(vector_mut) {
 
     std::vector<int> expected{1, 5, 3};
     BOOST_CHECK_EQUAL_COLLECTIONS(vec.cbegin(), vec.cend(), expected.begin(), expected.end());
-}
-
-
-/// Tests move constructor of vector element model
-BOOST_AUTO_TEST_CASE(vector_move_ctor) {
-    mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model elem{vec, vec.begin() + 1};
-    mv::ranges::element_model elem2{std::move(elem)};
-
-    int before_changed_count = 0;
-    elem2.before_changed().connect([&] { ++before_changed_count; });
-
-    int after_changed_count = 0;
-    elem2.after_changed().connect([&] { ++after_changed_count; });
-
-    vec.insert(vec.cbegin(), 4);
-    BOOST_CHECK_EQUAL(*elem2, 2);
-
-    vec.mut(2) = 5;
-    BOOST_CHECK_EQUAL(before_changed_count, 1);
-    BOOST_CHECK_EQUAL(after_changed_count, 1);
-    BOOST_CHECK_EQUAL(*elem2, 5);
-
-    vec.erase(vec.cbegin() + 2, vec.cbegin() + 3);
-    BOOST_CHECK(elem2.is_null());
-    BOOST_CHECK_EQUAL(before_changed_count, 2);
-    BOOST_CHECK_EQUAL(after_changed_count, 2);
 }
 
 

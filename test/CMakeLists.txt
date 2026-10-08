@@ -5,6 +5,7 @@ add_executable(cxxmv-test
                basic_model_test.cpp
                element_model_test.cpp
                model_vector_test.cpp
+               proxy_test.cpp
                ref_transform_range_test.cpp
                ref_transform_test.cpp
                test.cpp
