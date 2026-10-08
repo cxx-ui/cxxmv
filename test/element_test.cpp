@@ -4,15 +4,15 @@
 // See accompanying file LICENSE for license information.
 //
 
-/// \file element_model_test.cpp
-/// Contains unit tests for the range element_model class.
+/// \file element_test.cpp
+/// Contains unit tests for the range element class.
 
 #include "test_user.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/model.hpp>
 #include <cxxmv/observable.hpp>
 #include <cxxmv/ranges/all.hpp>
-#include <cxxmv/ranges/element_model.hpp>
+#include <cxxmv/ranges/element.hpp>
 #include <cxxmv/ranges/ref_projection.hpp>
 #include <cxxmv/ranges/ref_transform.hpp>
 #include <cxxmv/ranges/transform.hpp>
@@ -37,25 +37,25 @@ auto get_first_name = [](auto && u) -> auto & { return u.first_name; };
 }
 
 
-BOOST_AUTO_TEST_SUITE(element_model_test)
+BOOST_AUTO_TEST_SUITE(element_test)
 
 
 /// Tests construction of vector element model
 BOOST_AUTO_TEST_CASE(vector_ctor) {
-    using element_t = mv::ranges::element_model<mv::ranges::all_t<mv::vector<int> &>>;
+    using element_t = mv::ranges::element<mv::ranges::all_t<mv::vector<int> &>>;
 
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
 
     mv::vector<int> vec{1, 2, 3};
 
-    mv::ranges::element_model elem{vec, vec.begin() + 1};
+    mv::ranges::element elem{vec, vec.begin() + 1};
     BOOST_CHECK(!elem.is_null());
     BOOST_CHECK_EQUAL(*elem, 2);
     BOOST_CHECK_EQUAL(elem.get(), 2);
     BOOST_CHECK_EQUAL(elem.iterator() - vec.begin(), 1);
 
-    mv::ranges::element_model null_elem{vec};
+    mv::ranges::element null_elem{vec};
     BOOST_CHECK(null_elem.is_null());
 }
 
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(vector_ctor) {
 /// Tests vector element model when elements are inserted into vector
 BOOST_AUTO_TEST_CASE(vector_insert) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model elem{vec, vec.begin() + 1};
+    mv::ranges::element elem{vec, vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(vector_insert) {
 /// Tests vector element model when elements are erased from vector
 BOOST_AUTO_TEST_CASE(vector_erase) {
     mv::vector<int> vec{1, 2, 3, 4, 5};
-    mv::ranges::element_model elem{vec, vec.begin() + 2};
+    mv::ranges::element elem{vec, vec.begin() + 2};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(vector_erase) {
 /// Tests vector element model when elements are moved in vector
 BOOST_AUTO_TEST_CASE(vector_move) {
     mv::vector<int> vec{0, 1, 2, 3, 4, 5};
-    mv::ranges::element_model elem{vec, vec.begin() + 2};
+    mv::ranges::element elem{vec, vec.begin() + 2};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(vector_move) {
 /// Tests changed signals of vector element model when elements are changed in vector
 BOOST_AUTO_TEST_CASE(vector_change) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model elem{vec, vec.begin() + 1};
+    mv::ranges::element elem{vec, vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -229,7 +229,7 @@ BOOST_AUTO_TEST_CASE(vector_change) {
 /// Tests mutating vector element through element model
 BOOST_AUTO_TEST_CASE(vector_mut) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model elem{vec, vec.begin() + 1};
+    mv::ranges::element elem{vec, vec.begin() + 1};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(vector_mut) {
 /// Tests setting iterator of vector element model
 BOOST_AUTO_TEST_CASE(vector_set) {
     mv::vector<int> vec{1, 2, 3};
-    mv::ranges::element_model elem{vec};
+    mv::ranges::element elem{vec};
 
     int before_changed_count = 0;
     int after_changed_count = 0;
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model) {
     mv::vector<int> vec{1, 2, 3};
     auto vec2 = vec | mv::ranges::all;
 
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(vec2)>>;
+    using element_t = mv::ranges::element<std::decay_t<decltype(vec2)>>;
 
     static_assert(mv::model_of<element_t, int>);
     static_assert(mv::nullable_observable_as<element_t, int>);
@@ -349,7 +349,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model) {
 BOOST_AUTO_TEST_CASE(all_temporary_model) {
     auto vec = mv::vector<int>{1, 2, 3} | mv::ranges::all;
 
-    mv::ranges::element_model elem{mv::ranges::ref_projection{vec}, vec.begin() + 1};
+    mv::ranges::element elem{mv::ranges::ref_projection{vec}, vec.begin() + 1};
     BOOST_CHECK_EQUAL(*elem, 2);
 
     int before_changed_count = 0;
@@ -379,7 +379,7 @@ BOOST_AUTO_TEST_CASE(all_ref_model_set) {
     mv::vector<int> vec{1, 2, 3};
     auto vec2 = vec | mv::ranges::all;
 
-    mv::ranges::element_model elem{vec2};
+    mv::ranges::element elem{vec2};
     BOOST_CHECK(elem.is_null());
 
     int before_changed_count = 0;
@@ -413,7 +413,7 @@ BOOST_AUTO_TEST_CASE(transform) {
     auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
     auto names = vec | mv::ranges::transform(get_fn, set_fn);
 
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
+    using element_t = mv::ranges::element<std::decay_t<decltype(names)>>;
 
     static_assert(mv::model_of<element_t, std::string>);
     static_assert(mv::nullable_observable_as<element_t, std::string>);
@@ -459,7 +459,7 @@ BOOST_AUTO_TEST_CASE(transform_set) {
     auto get_fn = [](const test_user & u) { return u.first_name(); };
     auto names = vec | mv::ranges::transform(get_fn);
 
-    mv::ranges::element_model name{names};
+    mv::ranges::element name{names};
     BOOST_CHECK(name.is_null());
 
     int before_changed_count = 0;
@@ -492,7 +492,7 @@ BOOST_AUTO_TEST_CASE(transform_read_only) {
     auto get_fn = [](const test_user & u) { return u.first_name(); };
     auto names = vec | mv::ranges::transform(get_fn);
 
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
+    using element_t = mv::ranges::element<std::decay_t<decltype(names)>>;
 
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(!mv::model<element_t>);
@@ -522,7 +522,7 @@ BOOST_AUTO_TEST_CASE(ref_transform) {
     mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
     auto names = vec | mv::ranges::ref_transform(get_first_name);
 
-    using element_t = mv::ranges::element_model<std::decay_t<decltype(names)>>;
+    using element_t = mv::ranges::element<std::decay_t<decltype(names)>>;
 
     static_assert(mv::model_of<element_t, std::string>);
     static_assert(mv::nullable_observable_as<element_t, std::string>);
@@ -567,7 +567,7 @@ BOOST_AUTO_TEST_CASE(ref_transform_set) {
     mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
     auto names = vec | mv::ranges::ref_transform(get_first_name);
 
-    mv::ranges::element_model name{names};
+    mv::ranges::element name{names};
     BOOST_CHECK(name.is_null());
 
     int before_changed_count = 0;
@@ -598,7 +598,7 @@ BOOST_AUTO_TEST_CASE(ref_transform_temporary_base) {
     auto names = mv::vector<user>{{"John", "Smith"}, {"Jane", "Doe"}}
                | mv::ranges::ref_transform(get_first_name);
 
-    mv::ranges::element_model name{mv::ranges::ref_projection{names}, names.begin() + 1};
+    mv::ranges::element name{mv::ranges::ref_projection{names}, names.begin() + 1};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int before_changed_count = 0;

@@ -4,8 +4,8 @@
 // See accompanying file LICENSE for license information.
 //
 
-/// \file element_model.hpp
-/// Contains definition of the element_model class.
+/// \file element.hpp
+/// Contains definition of the element class.
 
 #pragma once
 
@@ -24,7 +24,7 @@ namespace mv::ranges {
 /// Model of element in range. Becomes null when element is removed from range.
 template <observable_projection Range>
 requires nullable_observable<std::ranges::iterator_t<Range>>
-class element_model: public mv::proxy<std::ranges::iterator_t<Range>> {
+class element: public mv::proxy<std::ranges::iterator_t<Range>> {
 public:
     /// Type of iterator pointing to element
     using iterator_type = std::ranges::iterator_t<Range>;
@@ -33,7 +33,7 @@ public:
     using const_iterator_type = std::ranges::iterator_t<const Range>;
 
     /// Constructs model of element in specified range pointed by specified iterator
-    element_model(Range rng, const iterator_type & it = {}):
+    element(Range rng, const iterator_type & it = {}):
     mv::proxy<iterator_type>{it},
     range_{std::move(rng)} {
         before_erased_con_ = range_.before_erased().connect([this](auto && first, auto && last) {
@@ -49,10 +49,10 @@ public:
     }
 
     /// Model is not copyable
-    element_model(const element_model &) = delete;
+    element(const element &) = delete;
 
     /// Model is not copy-assignable
-    element_model & operator=(const element_model &) = delete;
+    element & operator=(const element &) = delete;
 
     /// Returns iterator pointing to element
     const iterator_type & iterator() const {
@@ -66,10 +66,10 @@ private:
 
 
 template <projectable_observable Range>
-element_model(Range &&) -> element_model<all_t<Range>>;
+element(Range &&) -> element<all_t<Range>>;
 
 template <projectable_observable Range, typename Iterator>
-element_model(Range &&, Iterator) -> element_model<all_t<Range>>;
+element(Range &&, Iterator) -> element<all_t<Range>>;
 
 
 }

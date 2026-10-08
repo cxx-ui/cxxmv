@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "../ranges/element_model.hpp"
+#include "../ranges/element.hpp"
 #include "../signals.hpp"
 #include <QAbstractItemModel>
 #include <QItemSelectionModel>
@@ -25,11 +25,11 @@ namespace mv::qt {
 
 /// Item selection model that represents element selected in range model
 template <typename Range>
-requires requires { sizeof(ranges::element_model<ranges::all_t<Range &>>); }
+requires requires { sizeof(ranges::element<ranges::all_t<Range &>>); }
 class selected_element_model: public QItemSelectionModel {
 public:
     /// Type of model of selected element
-    using element_type = ranges::element_model<ranges::all_t<Range &>>;
+    using element_type = ranges::element<ranges::all_t<Range &>>;
 
     /// Constructs selection model for specified item model and range
     selected_element_model(Range & rng, QAbstractItemModel * mdl, QObject * parent = nullptr):
