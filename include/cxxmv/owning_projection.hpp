@@ -39,7 +39,7 @@ public:
 
     /// Reads value from observable
     decltype(auto) get() const {
-        return base_.get();
+        return mv::get(base_);
     }
 
     /// Reads value from observable
@@ -54,7 +54,7 @@ public:
 
     /// Returns model value mutator
     auto mut() {
-        return base_.mut();
+        return mv::mut(base_);
     }
 
     /// Returns before changed signal of base observable

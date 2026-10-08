@@ -22,29 +22,6 @@
 /// Represents position with name and employee occupying it
 class position {
 public:
-    /// Position mutator
-    class mutator {
-    public:
-        /// Constructs mutator with specified reference to position
-        mutator(position & pos):
-            pos_{pos} {}
-
-        /// Returns true if mutator is empty
-        bool empty() const { return false; }
-
-        /// Returns reference to position
-        position & ref() const { return pos_; }
-
-        /// Returns pointer to position
-        position * ptr() const { return &pos_; }
-
-        /// Returns pointer to position
-        position * operator->() const { return ptr(); }
-
-    private:
-        position & pos_;        ///< Reference to position
-    };
-
     /// Constructs position with specified name and employee in list of employees
     position(std::wstring name,
              employee_list & employees,
@@ -89,15 +66,6 @@ public:
         connect_employee();
         after_changed_();
     }
-
-    /// Returns const reference to position
-    const position & get() const { return *this; }
-
-    /// Returns const reference to position
-    const position & operator*() const { return get(); }
-
-    /// Starts mutating position
-    mutator mut() { return {*this}; }
 
     /// Returns signal emitted before position is changed
     auto & before_changed() const { return before_changed_; }

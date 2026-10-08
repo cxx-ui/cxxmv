@@ -48,15 +48,15 @@ concept assignable_mutator = mutator<Mutator, Value> && requires(const Mutator &
 template <typename Model>
 concept model = observable<Model> && requires (Model & mdl) {
     /// Mutator access
-    { mdl.mut() };
+    { mv::mut(mdl) };
 };
 
 
 /// Concept of model representing speicifed type
 template <typename Model, typename Value>
-concept model_of = model<Model> && observable_as<Model, Value> && requires(Model mdl) {
+concept model_of = model<Model> && observable_as<Model, Value> && requires(Model & mdl) {
     /// Model mutator access
-    { mdl.mut() } -> mutator<Value>;
+    { mv::mut(mdl) } -> mutator<Value>;
 };
 
 

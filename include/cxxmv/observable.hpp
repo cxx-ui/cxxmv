@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "access.hpp"
 #include "signals.hpp"
 #include <concepts>
 
@@ -35,14 +36,11 @@ concept nullable_observable = observable<Observable> && requires (const Observab
 };
 
 
-/// Observable concept with dereference operator to access value of specified type
+/// Observable concept with access to value of specified type
 template <typename Observable, typename Value>
 concept observable_as = observable<Observable> && requires(const Observable & obj) {
     /// Returns value of observable
-    { obj.get() } -> std::convertible_to<Value>;
-
-    /// Dereference operator for retreiving value of observable
-    { *obj } -> std::convertible_to<Value>;
+    { mv::get(obj) } -> std::convertible_to<Value>;
 };
 
 

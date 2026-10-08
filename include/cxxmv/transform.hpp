@@ -127,7 +127,7 @@ public:
     }
 
     /// Returns model value mutator
-    auto mut() {
+    auto mut() requires (!std::same_as<SetFn, empty_set_fn>) {
         return transform_mutator{base_.mut(), get_fn_, set_fn_};
     }
 
