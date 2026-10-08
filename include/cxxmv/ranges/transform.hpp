@@ -84,6 +84,18 @@ public:
             return *this;
         }
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return it_.is_null(); }
+
+        /// Returns transformed value of element
+        value_type get() const { return (*fn_)(*it_); }
+
+        /// Returns signal of base element emitted before element is changed
+        decltype(auto) before_changed() const { return it_.before_changed(); }
+
+        /// Returns signal of base element emitted after element is changed
+        decltype(auto) after_changed() const { return it_.after_changed(); }
+
         const value_type operator*() const { return (*fn_)(*it_); }
         const value_type operator[](difference_type n) const { return (*fn_)(it_[n]); }
 
@@ -157,9 +169,25 @@ public:
             return *this;
         }
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return it_.is_null(); }
+
+        /// Returns transformed value of element
+        value_type get() const { return (*get_fn_)(*it_); }
+
+        /// Starts mutating transformed value of element
+        auto mut() const requires (!std::same_as<SetFn, empty_set_fn>) {
+            return transform_mutator{it_.mut(), *get_fn_, *set_fn_};
+        }
+
+        /// Returns signal of base element emitted before element is changed
+        decltype(auto) before_changed() const { return it_.before_changed(); }
+
+        /// Returns signal of base element emitted after element is changed
+        decltype(auto) after_changed() const { return it_.after_changed(); }
+
         const value_type operator*() const { return (*get_fn_)(*it_); }
         const value_type operator[](difference_type n) const { return (*get_fn_)(*(it_ + n)); }
-        auto mut() const { return transform_mutator{it_.mut(), *get_fn_, *set_fn_}; }
 
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }

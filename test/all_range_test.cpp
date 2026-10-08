@@ -12,6 +12,7 @@
 #include <cxxmv/observable.hpp>
 #include <cxxmv/ranges/all.hpp>
 #include <cxxmv/ranges/element_model.hpp>
+#include <cxxmv/signals.hpp>
 #include <cxxmv/vector.hpp>
 #include <concepts>
 #include <ranges>
@@ -256,6 +257,64 @@ BOOST_AUTO_TEST_CASE(all_temporary_model_iterator) {
     BOOST_CHECK_EQUAL(vec.get(0), 10);
     BOOST_CHECK_EQUAL(vec.get(1), 20);
     BOOST_CHECK_EQUAL(vec.get(it), 20);
+}
+
+
+/// Tests iterators of all projection of model reference as element models
+BOOST_AUTO_TEST_CASE(all_ref_model_iterator_model) {
+    mv::vector<int> vec{1, 2, 3};
+    auto vec2 = vec | mv::ranges::all;
+
+    using all_t = std::decay_t<decltype(vec2)>;
+    static_assert(mv::model_of<std::ranges::iterator_t<all_t>, int>);
+    static_assert(mv::nullable_observable_as<std::ranges::iterator_t<const all_t>, int>);
+
+    auto it = vec2.begin() + 1;
+    auto cit = std::as_const(vec2).begin() + 1;
+
+    int after_changed_count = 0;
+    int const_after_changed_count = 0;
+
+    mv::scoped_signal_connection con = it.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    mv::scoped_signal_connection const_con = cit.after_changed().connect([&] {
+        ++const_after_changed_count;
+    });
+
+    vec.mut(0) = 10;
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+    BOOST_CHECK_EQUAL(const_after_changed_count, 0);
+
+    it.mut() = 20;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(const_after_changed_count, 1);
+    BOOST_CHECK_EQUAL(cit.get(), 20);
+}
+
+
+/// Tests iterators of all projection of temporary range model as element models
+BOOST_AUTO_TEST_CASE(all_temporary_model_iterator_model) {
+    auto vec = mv::vector<int>{1, 2, 3} | mv::ranges::all;
+
+    using all_t = std::decay_t<decltype(vec)>;
+    static_assert(mv::model_of<std::ranges::iterator_t<all_t>, int>);
+    static_assert(mv::nullable_observable_as<std::ranges::iterator_t<const all_t>, int>);
+
+    auto it = vec.begin() + 1;
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = it.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(0) = 10;
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    it.mut() = 20;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(it.get(), 20);
 }
 
 

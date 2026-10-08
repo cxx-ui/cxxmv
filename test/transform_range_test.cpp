@@ -14,6 +14,7 @@
 #include <cxxmv/observable.hpp>
 #include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/ranges/transform.hpp>
+#include <cxxmv/signals.hpp>
 #include <cxxmv/vector.hpp>
 #include <ranges>
 #include <string>
@@ -848,6 +849,135 @@ BOOST_AUTO_TEST_CASE(iterator_const_iterator_compare) {
 
     std::decay_t<decltype(names)>::const_iterator cit = it;
     BOOST_CHECK_EQUAL(*cit, "Jane");
+}
+
+
+/// Tests iterator of transform projection as model of transformed element
+BOOST_AUTO_TEST_CASE(iterator_model) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
+    auto names = vec | mv::ranges::transform(get_fn, set_fn);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::model_of<names_t::iterator, std::string>);
+    static_assert(mv::nullable_observable_as<names_t::iterator, std::string>);
+
+    auto it = names.begin() + 1;
+    BOOST_CHECK(!it.is_null());
+    BOOST_CHECK_EQUAL(it.get(), "Jane");
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = it.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count + 1, before_changed_count);
+    });
+
+    mv::scoped_signal_connection after_con = it.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count, before_changed_count);
+    });
+
+    // changes of other elements are not reported
+    vec.mut(0) = test_user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    // iterator keeps pointing to element after structural changes
+    vec.insert(vec.cbegin(), test_user{"Alice", "White"});
+    BOOST_CHECK_EQUAL(it.get(), "Jane");
+
+    vec.mut(2) = test_user{"Kate", "Black"};
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(it.get(), "Kate");
+
+    it.mut() = std::string{"Mary"};
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[2].first_name(), "Mary");
+    BOOST_CHECK_EQUAL(vec[2].last_name(), "Black");
+}
+
+
+/// Tests iterator of transform projection without set function as observable
+BOOST_AUTO_TEST_CASE(iterator_model_read_only) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::nullable_observable_as<names_t::iterator, std::string>);
+    static_assert(!mv::model<names_t::iterator>);
+
+    auto it = names.begin() + 1;
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = it.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(it.get(), "Alice");
+    });
+
+    vec.mut(1) = test_user{"Alice", "White"};
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests const iterator of transform projection as observable of transformed element
+BOOST_AUTO_TEST_CASE(const_iterator_observable) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto set_fn = [](test_user & u, const std::string & name) { u.set_first_name(name); };
+    auto names = vec | mv::ranges::transform(get_fn, set_fn);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::nullable_observable_as<names_t::const_iterator, std::string>);
+    static_assert(!mv::model<names_t::const_iterator>);
+
+    auto cit = std::as_const(names).begin() + 1;
+    BOOST_CHECK_EQUAL(cit.get(), "Jane");
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = cit.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), "Jane");
+    });
+
+    mv::scoped_signal_connection after_con = cit.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), "Alice");
+    });
+
+    vec.mut(0) = test_user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    (names.begin() + 1).mut() = std::string{"Alice"};
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests null iterators of transform projection
+BOOST_AUTO_TEST_CASE(iterator_null) {
+    mv::vector<test_user> vec{{"John", "Smith"}};
+
+    auto get_fn = [](const test_user & u) { return u.first_name(); };
+    auto names = vec | mv::ranges::transform(get_fn);
+
+    using names_t = std::decay_t<decltype(names)>;
+    BOOST_CHECK(names_t::iterator{}.is_null());
+    BOOST_CHECK(names_t::const_iterator{}.is_null());
+    BOOST_CHECK(names.end().is_null());
+    BOOST_CHECK(names.cend().is_null());
+    BOOST_CHECK(!names.begin().is_null());
 }
 
 

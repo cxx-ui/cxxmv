@@ -13,6 +13,7 @@
 #include <cxxmv/observable.hpp>
 #include <cxxmv/ranges/element_model.hpp>
 #include <cxxmv/ranges/ref_transform.hpp>
+#include <cxxmv/signals.hpp>
 #include <cxxmv/vector.hpp>
 #include <memory>
 #include <ranges>
@@ -802,6 +803,106 @@ BOOST_AUTO_TEST_CASE(iterator_get_mut) {
     BOOST_CHECK_EQUAL(vec[2].first_name, "Alice");
     BOOST_CHECK_EQUAL(vec[2].last_name, "Doe");
     BOOST_CHECK_EQUAL(names.get(it), "Alice");
+}
+
+
+/// Tests iterator of ref transform projection as model of transformed element
+BOOST_AUTO_TEST_CASE(iterator_model) {
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}, {"Bob", "Brown"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::model_of<names_t::iterator, std::string>);
+    static_assert(mv::nullable_observable_as<names_t::iterator, std::string>);
+
+    auto it = names.begin() + 1;
+    static_assert(std::is_same_v<decltype(it.get()), const std::string &>);
+
+    BOOST_CHECK(!it.is_null());
+    BOOST_CHECK_EQUAL(it.get(), "Jane");
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = it.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count + 1, before_changed_count);
+    });
+
+    mv::scoped_signal_connection after_con = it.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count, before_changed_count);
+    });
+
+    // changes of other elements are not reported
+    vec.mut(0) = user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    // iterator keeps pointing to element after structural changes
+    vec.insert(vec.cbegin(), user{"Alice", "White"});
+    BOOST_CHECK_EQUAL(it.get(), "Jane");
+
+    vec.mut(2) = user{"Kate", "Black"};
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(it.get(), "Kate");
+
+    it.mut() = "Mary";
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[2].first_name, "Mary");
+    BOOST_CHECK_EQUAL(vec[2].last_name, "Black");
+}
+
+
+/// Tests const iterator of ref transform projection as observable of transformed element
+BOOST_AUTO_TEST_CASE(const_iterator_observable) {
+    mv::vector<user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
+
+    using names_t = std::decay_t<decltype(names)>;
+    static_assert(mv::nullable_observable_as<names_t::const_iterator, std::string>);
+    static_assert(!mv::model<names_t::const_iterator>);
+
+    auto cit = std::as_const(names).begin() + 1;
+    static_assert(std::is_same_v<decltype(cit.get()), const std::string &>);
+    BOOST_CHECK_EQUAL(cit.get(), "Jane");
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = cit.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), "Jane");
+    });
+
+    mv::scoped_signal_connection after_con = cit.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), "Alice");
+    });
+
+    vec.mut(0) = user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    (names.begin() + 1).mut() = "Alice";
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests null iterators of ref transform projection
+BOOST_AUTO_TEST_CASE(iterator_null) {
+    mv::vector<user> vec{{"John", "Smith"}};
+    auto names = vec | mv::ranges::ref_transform(get_first_name);
+
+    using names_t = std::decay_t<decltype(names)>;
+    BOOST_CHECK(names_t::iterator{}.is_null());
+    BOOST_CHECK(names_t::const_iterator{}.is_null());
+    BOOST_CHECK(names.end().is_null());
+    BOOST_CHECK(names.cend().is_null());
+    BOOST_CHECK(!names.begin().is_null());
 }
 
 

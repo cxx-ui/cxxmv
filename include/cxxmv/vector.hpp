@@ -42,6 +42,8 @@ class vector {
 
 public:
     class iterator;
+    class before_changed_signal;
+    class after_changed_signal;
 
     /// Const iterator over vector elements
     class const_iterator {
@@ -55,6 +57,18 @@ public:
         /// Constructs iterator pointing to specified entry of vector
         const_iterator(const vector * vec, const entry * ent):
             vec_{vec}, ent_{ent} {}
+
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return ent_ == nullptr; }
+
+        /// Returns const reference to element
+        const T & get() const { return ent_->value; }
+
+        /// Returns signal emitted before element is changed
+        before_changed_signal before_changed() const { return {vec_, *this}; }
+
+        /// Returns signal emitted after element is changed
+        after_changed_signal after_changed() const { return {vec_, *this}; }
 
         const T & operator*() const { return ent_->value; }
         const T & operator[](difference_type n) const { return *(*this + n); }
@@ -99,6 +113,52 @@ public:
 
         const vector * vec_ = nullptr;      ///< Pointer to vector model
         const entry * ent_ = nullptr;       ///< Pointer to vector entry, null for end iterator
+    };
+
+
+    /// Signal emitted before element pointed by iterator is changed
+    class before_changed_signal {
+    public:
+        /// Constructs signal for element of specified vector
+        before_changed_signal(const vector * vec, const const_iterator & elem):
+            vec_{vec}, elem_{elem} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void ()> & fn) const {
+            assert(vec_ && "connecting to signal of null iterator");
+            return vec_->before_changed_.connect([elem = elem_, fn](const const_iterator & it) {
+                if (it == elem) {
+                    fn();
+                }
+            });
+        }
+
+    private:
+        const vector * vec_;        ///< Pointer to vector model
+        const_iterator elem_;       ///< Iterator pointing to element
+    };
+
+
+    /// Signal emitted after element pointed by iterator is changed
+    class after_changed_signal {
+    public:
+        /// Constructs signal for element of specified vector
+        after_changed_signal(const vector * vec, const const_iterator & elem):
+            vec_{vec}, elem_{elem} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void ()> & fn) const {
+            assert(vec_ && "connecting to signal of null iterator");
+            return vec_->after_changed_.connect([elem = elem_, fn](const const_iterator & it) {
+                if (it == elem) {
+                    fn();
+                }
+            });
+        }
+
+    private:
+        const vector * vec_;        ///< Pointer to vector model
+        const_iterator elem_;       ///< Iterator pointing to element
     };
 
 
@@ -181,8 +241,20 @@ public:
         iterator(vector * vec, entry * ent):
             vec_{vec}, ent_{ent} {}
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return ent_ == nullptr; }
+
+        /// Returns const reference to element
+        const T & get() const { return ent_->value; }
+
         /// Starts mutating element
         mutator mut() const { return mutator{vec_, ent_}; }
+
+        /// Returns signal emitted before element is changed
+        before_changed_signal before_changed() const { return {vec_, *this}; }
+
+        /// Returns signal emitted after element is changed
+        after_changed_signal after_changed() const { return {vec_, *this}; }
 
         const T & operator*() const { return ent_->value; }
         const T & operator[](difference_type n) const { return *(*this + n); }
@@ -441,7 +513,11 @@ public:
 private:
     /// Returns pointer to entry at specified index or nullptr if index is out of range
     entry * entry_at(std::ptrdiff_t idx) const {
-        return idx >= 0 && static_cast<size_t>(idx) < storage_.size() ? storage_[idx].get() : nullptr;
+        if (idx < 0 || static_cast<size_t>(idx) >= storage_.size()) {
+            return nullptr;
+        }
+
+        return storage_[idx].get();
     }
 
     /// Updates stored indexes of entries in range [first, last)
@@ -608,6 +684,9 @@ private:
 static_assert(ranges::observable_as<vector<int>, int>);
 static_assert(ranges::model<vector<int>, int>);
 static_assert(ranges::observable_with_move<vector<int>>);
+static_assert(model_of<vector<int>::iterator, int>);
+static_assert(nullable_observable_as<vector<int>::iterator, int>);
+static_assert(nullable_observable_as<vector<int>::const_iterator, int>);
 
 
 }

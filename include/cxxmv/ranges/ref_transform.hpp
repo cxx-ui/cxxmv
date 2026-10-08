@@ -83,6 +83,18 @@ public:
             return *this;
         }
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return it_.is_null(); }
+
+        /// Returns reference to transformed value of element
+        decltype(auto) get() const { return (*fn_)(*it_); }
+
+        /// Returns signal of base element emitted before element is changed
+        decltype(auto) before_changed() const { return it_.before_changed(); }
+
+        /// Returns signal of base element emitted after element is changed
+        decltype(auto) after_changed() const { return it_.after_changed(); }
+
         decltype(auto) operator*() const { return (*fn_)(*it_); }
         decltype(auto) operator[](difference_type n) const { return (*fn_)(it_[n]); }
 
@@ -162,7 +174,20 @@ public:
 
         decltype(auto) operator[](difference_type n) const { return *(*this + n); }
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return it_.is_null(); }
+
+        /// Returns reference to transformed value of element
+        decltype(auto) get() const { return **this; }
+
+        /// Starts mutating transformed value of element
         auto mut() const { return ref_transform_mutator{it_.mut(), *fn_}; }
+
+        /// Returns signal of base element emitted before element is changed
+        decltype(auto) before_changed() const { return it_.before_changed(); }
+
+        /// Returns signal of base element emitted after element is changed
+        decltype(auto) after_changed() const { return it_.after_changed(); }
 
         iterator & operator++() { ++it_; return *this; }
         iterator operator++(int) { auto tmp = *this; ++it_; return tmp; }

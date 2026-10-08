@@ -49,6 +49,24 @@ public:
         const_iterator(const model_vector * vec, const entry * ent):
             vec_{vec}, ent_{ent} {}
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return ent_ == nullptr; }
+
+        /// Returns const reference to element
+        const T & get() const { return *ent_->obj; }
+
+        /// Returns signal of element emitted before element is changed
+        decltype(auto) before_changed() const {
+            assert(ent_ && "getting signal of null iterator");
+            return std::as_const(*ent_->obj).before_changed();
+        }
+
+        /// Returns signal of element emitted after element is changed
+        decltype(auto) after_changed() const {
+            assert(ent_ && "getting signal of null iterator");
+            return std::as_const(*ent_->obj).after_changed();
+        }
+
         const T & operator*() const { return *ent_->obj; }
         const T & operator[](difference_type n) const { return *(*this + n); }
         const T * operator->() const { return ent_->obj.get(); }
@@ -144,8 +162,26 @@ public:
         iterator(model_vector * vec, entry * ent):
             vec_{vec}, ent_{ent} {}
 
+        /// Returns true if iterator does not point to element
+        bool is_null() const { return ent_ == nullptr; }
+
+        /// Returns const reference to element
+        const T & get() const { return *ent_->obj; }
+
         /// Starts mutating element
         mutator mut() const { return mutator{ent_->obj.get()}; }
+
+        /// Returns signal of element emitted before element is changed
+        decltype(auto) before_changed() const {
+            assert(ent_ && "getting signal of null iterator");
+            return std::as_const(*ent_->obj).before_changed();
+        }
+
+        /// Returns signal of element emitted after element is changed
+        decltype(auto) after_changed() const {
+            assert(ent_ && "getting signal of null iterator");
+            return std::as_const(*ent_->obj).after_changed();
+        }
 
         const T & operator*() const { return *ent_->obj; }
         const T & operator[](difference_type n) const { return *(*this + n); }

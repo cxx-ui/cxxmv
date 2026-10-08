@@ -4,7 +4,6 @@ add_executable(cxxmv-test
                all_test.cpp
                basic_model_test.cpp
                model_vector_test.cpp
-               range_element_test.cpp
                ref_transform_range_test.cpp
                ref_transform_test.cpp
                test.cpp

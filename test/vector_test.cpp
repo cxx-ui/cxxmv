@@ -11,6 +11,8 @@
 #include <boost/test/unit_test.hpp>
 #include <cxxmv/model.hpp>
 #include <cxxmv/observable.hpp>
+#include <cxxmv/signals.hpp>
+#include <cxxmv/transform.hpp>
 #include <cxxmv/vector.hpp>
 #include <iterator>
 #include <memory>
@@ -1264,6 +1266,177 @@ BOOST_AUTO_TEST_CASE(iterator_stability) {
 
     BOOST_CHECK_EQUAL(*it, 2);
     BOOST_CHECK_EQUAL(*cit, 2);
+}
+
+
+/// Tests iterator as model of vector element
+BOOST_AUTO_TEST_CASE(iterator_model) {
+    static_assert(mv::model_of<mv::vector<int>::iterator, int>);
+    static_assert(mv::nullable_observable_as<mv::vector<int>::iterator, int>);
+
+    mv::vector<int> vec{1, 2, 3};
+    auto it = vec.begin() + 1;
+
+    BOOST_CHECK(!it.is_null());
+    BOOST_CHECK_EQUAL(it.get(), 2);
+    BOOST_CHECK_EQUAL(mv::get(it), 2);
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = it.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count + 1, before_changed_count);
+    });
+
+    mv::scoped_signal_connection after_con = it.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(after_changed_count, before_changed_count);
+    });
+
+    // changes of other elements are not reported
+    vec.mut(0) = 10;
+    vec.mut(2) = 30;
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    // iterator keeps pointing to element after structural changes
+    vec.insert(vec.cbegin(), 0);
+    vec.move(vec.cbegin() + 2, vec.cbegin() + 3, vec.cbegin());
+    BOOST_CHECK_EQUAL(it.get(), 2);
+
+    vec.mut(0) = 20;
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(it.get(), 20);
+
+    it.mut() = 21;
+    BOOST_CHECK_EQUAL(before_changed_count, 2);
+    BOOST_CHECK_EQUAL(after_changed_count, 2);
+    BOOST_CHECK_EQUAL(vec[0], 21);
+}
+
+
+/// Tests values of element in before and after changed signals of iterator
+BOOST_AUTO_TEST_CASE(iterator_model_signal_values) {
+    mv::vector<int> vec{1, 2, 3};
+    auto it = vec.begin() + 1;
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = it.before_changed().connect([&] {
+        ++before_changed_count;
+
+        // element is not modified yet
+        BOOST_CHECK_EQUAL(it.get(), 2);
+    });
+
+    mv::scoped_signal_connection after_con = it.after_changed().connect([&] {
+        ++after_changed_count;
+
+        // element is already modified
+        BOOST_CHECK_EQUAL(it.get(), 20);
+    });
+
+    it.mut() = 20;
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests const iterator as observable of vector element
+BOOST_AUTO_TEST_CASE(const_iterator_observable) {
+    static_assert(mv::nullable_observable_as<mv::vector<int>::const_iterator, int>);
+    static_assert(!mv::model<mv::vector<int>::const_iterator>);
+
+    mv::vector<int> vec{1, 2, 3};
+    auto cit = vec.cbegin() + 1;
+
+    BOOST_CHECK(!cit.is_null());
+    BOOST_CHECK_EQUAL(cit.get(), 2);
+
+    int before_changed_count = 0;
+    int after_changed_count = 0;
+
+    mv::scoped_signal_connection before_con = cit.before_changed().connect([&] {
+        ++before_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), 2);
+    });
+
+    mv::scoped_signal_connection after_con = cit.after_changed().connect([&] {
+        ++after_changed_count;
+        BOOST_CHECK_EQUAL(cit.get(), 20);
+    });
+
+    vec.mut(0) = 10;
+    BOOST_CHECK_EQUAL(before_changed_count, 0);
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    // changing element via mutable iterator is reported to const iterator
+    (vec.begin() + 1).mut() = 20;
+    BOOST_CHECK_EQUAL(before_changed_count, 1);
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests disconnecting from signals of iterator
+BOOST_AUTO_TEST_CASE(iterator_model_disconnect) {
+    mv::vector<int> vec{1, 2, 3};
+    auto it = vec.begin() + 1;
+
+    int after_changed_count = 0;
+
+    {
+        mv::scoped_signal_connection con = it.after_changed().connect([&] {
+            ++after_changed_count;
+        });
+
+        it.mut() = 20;
+        BOOST_CHECK_EQUAL(after_changed_count, 1);
+    }
+
+    it.mut() = 30;
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+}
+
+
+/// Tests null iterators
+BOOST_AUTO_TEST_CASE(iterator_null) {
+    mv::vector<int> vec{1, 2, 3};
+
+    BOOST_CHECK(mv::vector<int>::iterator{}.is_null());
+    BOOST_CHECK(mv::vector<int>::const_iterator{}.is_null());
+    BOOST_CHECK(vec.end().is_null());
+    BOOST_CHECK(vec.cend().is_null());
+    BOOST_CHECK(mv::is_null(mv::vector<int>::iterator{}));
+}
+
+
+/// Tests transform projection of iterator
+BOOST_AUTO_TEST_CASE(iterator_transform) {
+    mv::vector<test_user> vec{{"John", "Smith"}, {"Jane", "Doe"}};
+    auto it = vec.begin() + 1;
+
+    auto name = it | mv::transform(
+        [](const test_user & u) { return u.first_name(); },
+        [](test_user & u, const std::string & val) { u.set_first_name(val); });
+
+    static_assert(mv::model_of<decltype(name), std::string>);
+    BOOST_CHECK_EQUAL(name.get(), "Jane");
+
+    int after_changed_count = 0;
+    mv::scoped_signal_connection con = name.after_changed().connect([&] {
+        ++after_changed_count;
+    });
+
+    vec.mut(0) = test_user{"Tom", "Green"};
+    BOOST_CHECK_EQUAL(after_changed_count, 0);
+
+    name.mut() = std::string{"Alice"};
+    BOOST_CHECK_EQUAL(after_changed_count, 1);
+    BOOST_CHECK_EQUAL(vec[1].first_name(), "Alice");
+    BOOST_CHECK_EQUAL(vec[1].last_name(), "Doe");
 }
 
 
