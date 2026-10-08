@@ -280,7 +280,7 @@ public:
 
         auto idx = static_cast<size_t>(pos.index());
         auto sz = static_cast<size_t>(std::distance(first, last));
-        before_inserted_(idx, sz);
+        before_inserted_(pos, sz);
 
         std::vector<std::unique_ptr<entry>> ents;
         ents.reserve(sz);
@@ -293,7 +293,7 @@ public:
                         std::make_move_iterator(ents.end()));
 
         update_indexes(idx, storage_.size());
-        after_inserted_(idx, sz);
+        after_inserted_(cbegin() + idx, cbegin() + idx + sz);
     }
 
     /// Inserts element at specified position
@@ -320,11 +320,11 @@ public:
     template <typename ... Args>
     const_iterator emplace(const const_iterator & pos, Args && ... args) {
         auto idx = static_cast<size_t>(pos.index());
-        before_inserted_(idx, 1);
+        before_inserted_(pos, 1);
         auto res = storage_.insert(storage_.begin() + idx,
                                    std::make_unique<entry>(idx, std::forward<Args>(args)...));
         update_indexes(idx + 1, storage_.size());
-        after_inserted_(idx, 1);
+        after_inserted_(cbegin() + idx, cbegin() + idx + 1);
         return {this, res->get()};
     }
 
@@ -342,10 +342,10 @@ public:
 
         auto idx = static_cast<size_t>(first.index());
         auto sz = static_cast<size_t>(last - first);
-        before_erased_(idx, sz);
+        before_erased_(first, last);
         storage_.erase(storage_.begin() + idx, storage_.begin() + idx + sz);
         update_indexes(idx, storage_.size());
-        after_erased_(idx, sz);
+        after_erased_(cbegin() + idx, sz);
     }
 
     /// Erases all elements
@@ -453,12 +453,24 @@ private:
 
     std::vector<std::unique_ptr<entry>> storage_;                   ///< Vector storage
 
-    mutable signal<void (size_t, size_t)> before_inserted_;          ///< Before inserted signal
-    mutable signal<void (size_t, size_t)> after_inserted_;           ///< After inserted signal
-    mutable signal<void (size_t, size_t)> before_erased_;            ///< Before erased signal
-    mutable signal<void (size_t, size_t)> after_erased_;             ///< After erased signal
-    mutable signal<void (const_iterator)> before_changed_;           ///< Before changed signal
-    mutable signal<void (const_iterator)> after_changed_;            ///< After changed signal
+    /// Before inserted signal
+    mutable signal<void (const const_iterator &, size_t)> before_inserted_;
+
+    /// After inserted signal
+    mutable signal<void (const const_iterator &, const const_iterator &)> after_inserted_;
+
+    /// Before erased signal
+    mutable signal<void (const const_iterator &, const const_iterator &)> before_erased_;
+
+    /// After erased signal
+    mutable signal<void (const const_iterator &, size_t)> after_erased_;
+
+    /// Before changed signal
+    mutable signal<void (const const_iterator &)> before_changed_;
+
+    /// After changed signal
+    mutable signal<void (const const_iterator &)> after_changed_;
+
     mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
     mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
 };
@@ -555,8 +567,8 @@ private:
 
         auto & vec = *it_.vec_;
 
-        before_erased_con_ = vec.before_erased().connect([this](size_t idx, size_t count) {
-            if (index() >= idx && index() < idx + count) {
+        before_erased_con_ = vec.before_erased().connect([this](auto && first, auto && last) {
+            if (first <= it_ && it_ < last) {
                 before_changed_();
                 disconnect_signals();
                 it_ = {};

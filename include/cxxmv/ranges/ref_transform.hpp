@@ -194,34 +194,126 @@ public:
         std::optional<GetRefFn> fn_;        ///< Get reference function
     };
 
-    /// Signal emitted before or after element is changed with iterator pointing to element
-    class changed_signal {
+    /// Signal emitted before elements are inserted with iterator pointing to insert position
+    /// and count of elements
+    class before_inserted_signal {
     public:
         /// Constructs signal for specified projection
-        changed_signal(const ref_transform_projection * proj, bool before):
-            proj_{proj}, before_{before} {}
+        before_inserted_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
 
         /// Connects function to signal
-        signal_connection connect(const std::function<void (const_iterator)> & fn) const {
-            if (before_) {
-                return connect_to(proj_->base_.before_changed(), fn);
-            } else {
-                return connect_to(proj_->base_.after_changed(), fn);
-            }
+        signal_connection connect(
+                const std::function<void (const const_iterator &, size_t)> & fn) const {
+            return proj_->base_.before_inserted().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & pos, size_t count) {
+                fn(const_iterator{pos, get_ref_fn}, count);
+            });
         }
 
     private:
-        /// Connects function to specified changed signal of base range
-        template <typename BaseSignal>
-        signal_connection connect_to(BaseSignal && sig,
-                                     const std::function<void (const_iterator)> & fn) const {
-            return sig.connect([get_ref_fn = proj_->get_ref_fn_, fn](const auto & it) {
+        const ref_transform_projection * proj_;     ///< Pointer to projection
+    };
+
+    /// Signal emitted after elements are inserted with range of inserted elements
+    class after_inserted_signal {
+    public:
+        /// Constructs signal for specified projection
+        after_inserted_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
+
+        /// Connects function to signal
+        signal_connection connect(
+                const std::function<void (const const_iterator &,
+                                          const const_iterator &)> & fn) const {
+            return proj_->base_.after_inserted().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & first, const auto & last) {
+                fn(const_iterator{first, get_ref_fn}, const_iterator{last, get_ref_fn});
+            });
+        }
+
+    private:
+        const ref_transform_projection * proj_;     ///< Pointer to projection
+    };
+
+    /// Signal emitted before elements are erased with range of elements to be erased
+    class before_erased_signal {
+    public:
+        /// Constructs signal for specified projection
+        before_erased_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
+
+        /// Connects function to signal
+        signal_connection connect(
+                const std::function<void (const const_iterator &,
+                                          const const_iterator &)> & fn) const {
+            return proj_->base_.before_erased().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & first, const auto & last) {
+                fn(const_iterator{first, get_ref_fn}, const_iterator{last, get_ref_fn});
+            });
+        }
+
+    private:
+        const ref_transform_projection * proj_;     ///< Pointer to projection
+    };
+
+    /// Signal emitted after elements are erased with iterator pointing to element following
+    /// erased elements and count of erased elements
+    class after_erased_signal {
+    public:
+        /// Constructs signal for specified projection
+        after_erased_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
+
+        /// Connects function to signal
+        signal_connection connect(
+                const std::function<void (const const_iterator &, size_t)> & fn) const {
+            return proj_->base_.after_erased().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & pos, size_t count) {
+                fn(const_iterator{pos, get_ref_fn}, count);
+            });
+        }
+
+    private:
+        const ref_transform_projection * proj_;     ///< Pointer to projection
+    };
+
+    /// Signal emitted before element is changed with iterator pointing to element
+    class before_changed_signal {
+    public:
+        /// Constructs signal for specified projection
+        before_changed_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void (const const_iterator &)> & fn) const {
+            return proj_->base_.before_changed().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & it) {
                 fn(const_iterator{it, get_ref_fn});
             });
         }
 
+    private:
         const ref_transform_projection * proj_;     ///< Pointer to projection
-        bool before_;                               ///< Is it before changed signal
+    };
+
+    /// Signal emitted after element is changed with iterator pointing to element
+    class after_changed_signal {
+    public:
+        /// Constructs signal for specified projection
+        after_changed_signal(const ref_transform_projection * proj):
+            proj_{proj} {}
+
+        /// Connects function to signal
+        signal_connection connect(const std::function<void (const const_iterator &)> & fn) const {
+            return proj_->base_.after_changed().connect(
+            [get_ref_fn = proj_->get_ref_fn_, fn](const auto & it) {
+                fn(const_iterator{it, get_ref_fn});
+            });
+        }
+
+    private:
+        const ref_transform_projection * proj_;     ///< Pointer to projection
     };
 
     /// Constructs ref transform projection with specified base range and get reference function
@@ -290,23 +382,23 @@ public:
         return get_ref_fn_(this->base_.get(it.base()));
     }
 
-    /// Returns signal of base range emitted before items added
-    decltype(auto) before_inserted() const { return this->base_.before_inserted(); }
+    /// Returns signal emitted before items added
+    before_inserted_signal before_inserted() const { return {this}; }
 
-    /// Returns signal of base range emitted after items added
-    decltype(auto) after_inserted() const { return this->base_.after_inserted(); }
+    /// Returns signal emitted after items added
+    after_inserted_signal after_inserted() const { return {this}; }
 
-    /// Returns signal of base range emitted before items removed
-    decltype(auto) before_erased() const { return this->base_.before_erased(); }
+    /// Returns signal emitted before items removed
+    before_erased_signal before_erased() const { return {this}; }
 
-    /// Returns signal of base range emitted after items removed
-    decltype(auto) after_erased() const { return this->base_.after_erased(); }
+    /// Returns signal emitted after items removed
+    after_erased_signal after_erased() const { return {this}; }
 
-    /// Returns signal of base range emitted before item is changed
-    changed_signal before_changed() const { return {this, true}; }
+    /// Returns signal emitted before item is changed
+    before_changed_signal before_changed() const { return {this}; }
 
-    /// Returns signal of base range emitted after item is changed
-    changed_signal after_changed() const { return {this, false}; }
+    /// Returns signal emitted after item is changed
+    after_changed_signal after_changed() const { return {this}; }
 
     /// Returns signal of base range emitted before items moved
     decltype(auto) before_moved() const requires observable_with_move<Range> {

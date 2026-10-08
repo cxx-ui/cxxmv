@@ -19,15 +19,19 @@
 namespace mv::ranges {
 
 
+template <typename Range>
+using const_range_iterator = std::ranges::iterator_t<const std::remove_reference_t<Range>>;
+
+
 /// Observable range concept
 template <typename Range>
-concept observable = std::ranges::random_access_range<Range> && requires(const Range & obj) {
-    { obj.before_inserted() } -> Signal<size_t, size_t>;
-    { obj.after_inserted() } -> Signal<size_t, size_t>;
-    { obj.before_erased() } -> Signal<size_t, size_t>;
-    { obj.after_erased() } -> Signal<size_t, size_t>;
-    { obj.before_changed() } -> Signal<std::ranges::iterator_t<const std::remove_reference_t<Range>>>;
-    { obj.after_changed() } -> Signal<std::ranges::iterator_t<const std::remove_reference_t<Range>>>;
+concept observable = std::ranges::random_access_range<Range> && requires(Range obj) {
+    { obj.before_inserted() } -> Signal<const_range_iterator<Range>, size_t>;
+    { obj.after_inserted() } -> Signal<const_range_iterator<Range>, const_range_iterator<Range>>;
+    { obj.before_erased() } -> Signal<const_range_iterator<Range>, const_range_iterator<Range>>;
+    { obj.after_erased() } -> Signal<const_range_iterator<Range>, size_t>;
+    { obj.before_changed() } -> Signal<const_range_iterator<Range>>;
+    { obj.after_changed() } -> Signal<const_range_iterator<Range>>;
 };
 
 

@@ -39,24 +39,28 @@ public:
     range_model(Range rng, QObject * parent = nullptr):
     QAbstractItemModel{parent},
     rng_{std::move(rng)} {
-        before_inserted_con_ = rng_.before_inserted().connect([this](size_t idx, size_t count) {
+        before_inserted_con_ = rng_.before_inserted().connect(
+        [this](const auto & pos, size_t count) {
             assert(count > 0 && "inserted count should not be 0");
-            int row = static_cast<int>(idx);
+            int row = static_cast<int>(pos - std::ranges::cbegin(rng_));
             beginInsertRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
         });
 
-        after_inserted_con_ = rng_.after_inserted().connect([this](size_t, size_t count) {
-            assert(count > 0 && "inserted count should not be 0");
+        after_inserted_con_ = rng_.after_inserted().connect(
+        [this](const auto & first, const auto & last) {
+            assert(first != last && "inserted count should not be 0");
             endInsertRows();
         });
 
-        before_erased_con_ = rng_.before_erased().connect([this](size_t idx, size_t count) {
-            assert(count > 0 && "erased count should not be 0");
-            int row = static_cast<int>(idx);
-            beginRemoveRows(QModelIndex{}, row, row + static_cast<int>(count) - 1);
+        before_erased_con_ = rng_.before_erased().connect(
+        [this](const auto & first, const auto & last) {
+            assert(first != last && "erased count should not be 0");
+            int row = static_cast<int>(first - std::ranges::cbegin(rng_));
+            int count = static_cast<int>(last - first);
+            beginRemoveRows(QModelIndex{}, row, row + count - 1);
         });
 
-        after_erased_con_ = rng_.after_erased().connect([this](size_t, size_t count) {
+        after_erased_con_ = rng_.after_erased().connect([this](const auto &, size_t count) {
             assert(count > 0 && "erased count should not be 0");
             endRemoveRows();
         });

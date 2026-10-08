@@ -270,10 +270,10 @@ public:
 
         auto idx = static_cast<size_t>(first.index());
         auto sz = static_cast<size_t>(last - first);
-        before_erased_(idx, sz);
+        before_erased_(first, last);
         storage_.erase(storage_.begin() + idx, storage_.begin() + idx + sz);
         update_indexes(idx, storage_.size());
-        after_erased_(idx, sz);
+        after_erased_(cbegin() + idx, sz);
     }
 
     /// Erases all elements
@@ -372,7 +372,7 @@ private:
         assert(obj && "inserting null object");
 
         auto idx = static_cast<size_t>(pos.index());
-        before_inserted_(idx, 1);
+        before_inserted_(pos, 1);
 
         auto ent = std::make_unique<entry>(std::move(obj), idx);
 
@@ -387,7 +387,7 @@ private:
 
         auto res = storage_.insert(storage_.begin() + idx, std::move(ent));
         update_indexes(idx + 1, storage_.size());
-        after_inserted_(idx, 1);
+        after_inserted_(cbegin() + idx, cbegin() + idx + 1);
         return {this, res->get()};
     }
 
@@ -405,12 +405,24 @@ private:
 
     std::vector<std::unique_ptr<entry>> storage_;   ///< Vector storage
 
-    mutable signal<void (size_t, size_t)> before_inserted_;          ///< Before inserted signal
-    mutable signal<void (size_t, size_t)> after_inserted_;           ///< After inserted signal
-    mutable signal<void (size_t, size_t)> before_erased_;            ///< Before erased signal
-    mutable signal<void (size_t, size_t)> after_erased_;             ///< After erased signal
-    mutable signal<void (const_iterator)> before_changed_;           ///< Before changed signal
-    mutable signal<void (const_iterator)> after_changed_;            ///< After changed signal
+    /// Before inserted signal
+    mutable signal<void (const const_iterator &, size_t)> before_inserted_;
+
+    /// After inserted signal
+    mutable signal<void (const const_iterator &, const const_iterator &)> after_inserted_;
+
+    /// Before erased signal
+    mutable signal<void (const const_iterator &, const const_iterator &)> before_erased_;
+
+    /// After erased signal
+    mutable signal<void (const const_iterator &, size_t)> after_erased_;
+
+    /// Before changed signal
+    mutable signal<void (const const_iterator &)> before_changed_;
+
+    /// After changed signal
+    mutable signal<void (const const_iterator &)> after_changed_;
+
     mutable signal<void (size_t, size_t, size_t)> before_moved_;     ///< Before moved signal
     mutable signal<void (size_t, size_t, size_t)> after_moved_;      ///< After moved signal
 };

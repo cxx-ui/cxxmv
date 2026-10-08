@@ -39,13 +39,13 @@ public:
         });
 
         employees_before_erased_con_ = employees_.before_erased().connect(
-        [this](size_t idx, size_t count) {
+        [this](const auto & first, const auto & last) {
             if (!empl_) {
                 return;
             }
 
-            for (size_t i = idx; i < idx + count; ++i) {
-                if (&employees_[i] == empl_) {
+            for (auto it = first; it != last; ++it) {
+                if (&*it == empl_) {
                     set_employee(nullptr);
                     break;
                 }
