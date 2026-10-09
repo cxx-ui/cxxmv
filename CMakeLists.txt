@@ -5,6 +5,7 @@ project(cxxmv)
 include(CTest)
 
 option(CXXMV_ENABLE_QT "Enable Qt implementation" ON)
+option(CXXMV_BUILD_EXAMPLES "Build examples" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -25,7 +26,9 @@ if(CXXMV_ENABLE_QT)
     target_link_libraries(cxxmv-qt INTERFACE cxxmv Qt6::Widgets)
 endif()
 
-add_subdirectory(examples)
+if(CXXMV_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
 if(BUILD_TESTING)
     add_subdirectory(test)
