@@ -12,6 +12,7 @@
 #include "employee.hpp"
 #include <cxxmv/all.hpp>
 #include <cxxmv/transform.hpp>
+#include <cxxmv/qt/combo_box.hpp>
 #include <cxxmv/qt/line_edit.hpp>
 #include <QFormLayout>
 #include <QWidget>
@@ -41,9 +42,19 @@ public:
             [](const employee & c) { return c.full_name(); },
             [](employee & c, const std::wstring & val) { c.set_full_name(val); });
 
+        auto type = mdl_ | mv::transform(
+            [](const employee & c) { return static_cast<int>(c.type()); },
+            [](employee & c, int idx) { c.set_type(idx == 0 ? employee_type::permanent :
+                                                              employee_type::contractor); });
+
         layout->addRow("First name:", new mv::qt::line_edit{std::move(first_name)});
         layout->addRow("Last name:", new mv::qt::line_edit{std::move(last_name)});
         layout->addRow("Full name:", new mv::qt::line_edit{std::move(full_name)});
+
+        auto type_select = new mv::qt::combo_box{std::move(type)};
+        layout->addRow("Type:", type_select);
+        type_select->addItem("Permanent");
+        type_select->addItem("Contractor");
     }
 
 private:

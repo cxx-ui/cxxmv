@@ -39,11 +39,11 @@ public:
 
 private:
     employee_list employees_{
-        {L"John", L"Smith"},
-        {L"Jane", L"Doe"},
-        {L"Bob", L"Brown"},
-        {L"Alice", L"White"},
-        {L"Tom", L"Green"}
+        {L"John", L"Smith", employee_type::permanent},
+        {L"Jane", L"Doe", employee_type::permanent},
+        {L"Bob", L"Brown", employee_type::contractor},
+        {L"Alice", L"White", employee_type::permanent},
+        {L"Tom", L"Green", employee_type::contractor}
     };
 
     position_list positions_;

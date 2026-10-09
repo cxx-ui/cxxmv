@@ -96,7 +96,7 @@ private:
     /// Adds new employee after selected one or at the end of list and selects it
     void add() {
         auto pos = elem_.is_null() ? employees_.cend() : elem_.iterator() + 1;
-        elem_.set(employees_.emplace(pos, L"New", L"Employee"));
+        elem_.set(employees_.emplace(pos, L"New", L"Employee", employee_type::permanent));
     }
 
     /// Removes selected employee

@@ -29,6 +29,7 @@ public:
         first_name_column,
         last_name_column,
         full_name_column,
+        type_column,
         column_count
     };
 
@@ -64,6 +65,8 @@ public:
             return QString::fromStdWString(cont.last_name());
         case full_name_column:
             return QString::fromStdWString(cont.full_name());
+        case type_column:
+            return QString::fromStdString(employee_type_to_string(cont.type()));
         default:
             return {};
         }
@@ -93,6 +96,8 @@ public:
             case full_name_column:
                 cont.set_full_name(val);
                 break;
+            case type_column:
+                cont.set_type(employee_type::contractor);
             default:
                 return false;
             }
@@ -111,7 +116,9 @@ public:
 
         Qt::ItemFlags res = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
         if constexpr (!is_read_only) {
-            res |= Qt::ItemIsEditable;
+            if (idx.column() != type_column) {
+                res |= Qt::ItemIsEditable;
+            }
         }
 
         if constexpr (supports_move) {
@@ -130,7 +137,7 @@ public:
                 return false;
             }
 
-            std::vector<employee> vals(count, employee{{}, {}});
+            std::vector<employee> vals(count, employee{{}, {}, employee_type::permanent});
             auto pos = std::ranges::begin(this->range()) + row;
             this->range().insert(pos, vals.begin(), vals.end());
             return true;

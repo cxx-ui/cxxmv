@@ -14,6 +14,7 @@
 #include "position.hpp"
 #include "position_table_model.hpp"
 #include <cxxmv/ranges/all.hpp>
+#include <cxxmv/qt/combo_box.hpp>
 #include <QAbstractItemModel>
 #include <QComboBox>
 #include <QStyledItemDelegate>

@@ -19,6 +19,8 @@ namespace mv::qt {
 
 /// Line view control for text model containing std::string or std::wstring
 template <projectable_observable Model>
+requires projectable_observable_as<Model, std::string> ||
+         projectable_observable_as<Model, std::wstring>
 class line_edit: public QLineEdit {
 public:
     static constexpr bool is_read_only = !projectable_model<Model, std::string> &&
