@@ -76,12 +76,12 @@ public:
     }
 
     /// Starts mutating of element at specified index
-    auto mut(size_t idx) {
+    auto mut(size_t idx) requires model<Base, std::ranges::range_value_t<Base>> {
         return base_->mut(idx);
     }
 
     /// Starts mutating of element pointed by specified iterator
-    auto mut(const iterator & it) {
+    auto mut(const iterator & it) requires model<Base, std::ranges::range_value_t<Base>> {
         return base_->mut(it);
     }
 
