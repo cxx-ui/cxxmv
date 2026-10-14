@@ -148,11 +148,6 @@ public:
         /// Constructs iterator
         iterator() = default;
 
-        /// Constructs iterator from base iterator without functions, can be used only
-        /// for referencing elements in projection
-        iterator(base_iterator it):
-            it_{it} {}
-
         /// Constructs iterator from base iterator, get and set functions
         iterator(base_iterator it, const GetFn & gf, const SetFn & sf):
             it_{it}, get_fn_{gf}, set_fn_{sf} {}

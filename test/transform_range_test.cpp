@@ -704,9 +704,6 @@ BOOST_AUTO_TEST_CASE(iterator_get_mut) {
     BOOST_CHECK_EQUAL(vec[2].first_name(), "Alice");
     BOOST_CHECK_EQUAL(vec[2].last_name(), "Doe");
     BOOST_CHECK_EQUAL(names.get(it), "Alice");
-
-    // iterator constructed from base iterator references the same element
-    BOOST_CHECK_EQUAL(names.get(vec.begin() + 2), "Alice");
 }
 
 

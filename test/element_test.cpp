@@ -418,7 +418,7 @@ BOOST_AUTO_TEST_CASE(transform) {
     static_assert(mv::model_of<element_t, std::string>);
     static_assert(mv::nullable_observable_as<element_t, std::string>);
 
-    element_t name{names, vec.begin() + 1};
+    element_t name{names, names.begin() + 1};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -468,7 +468,7 @@ BOOST_AUTO_TEST_CASE(transform_set) {
     int after_changed_count = 0;
     name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
-    name.set(vec.begin() + 2);
+    name.set(names.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");
@@ -497,7 +497,7 @@ BOOST_AUTO_TEST_CASE(transform_read_only) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(!mv::model<element_t>);
 
-    element_t name{names, vec.begin() + 1};
+    element_t name{names, names.begin() + 1};
     BOOST_CHECK_EQUAL(*name, "Jane");
 
     int before_changed_count = 0;
@@ -528,7 +528,7 @@ BOOST_AUTO_TEST_CASE(ref_transform) {
     static_assert(mv::nullable_observable_as<element_t, std::string>);
     static_assert(std::is_same_v<decltype(std::declval<element_t>().get()), const std::string &>);
 
-    element_t name{names, vec.begin() + 1};
+    element_t name{names, names.begin() + 1};
     BOOST_CHECK(!name.is_null());
     BOOST_CHECK_EQUAL(*name, "Jane");
 
@@ -576,7 +576,7 @@ BOOST_AUTO_TEST_CASE(ref_transform_set) {
     int after_changed_count = 0;
     name.after_changed().connect([&after_changed_count] { ++after_changed_count; });
 
-    name.set(vec.begin() + 2);
+    name.set(names.begin() + 2);
     BOOST_CHECK_EQUAL(before_changed_count, 1);
     BOOST_CHECK_EQUAL(after_changed_count, 1);
     BOOST_CHECK_EQUAL(*name, "Bob");

@@ -147,11 +147,6 @@ public:
         /// Constructs invalid iterator
         iterator() = default;
 
-        /// Constructs iterator from base iterator without function, can be used only
-        /// for referencing elements in projection
-        iterator(base_iterator it):
-            it_{it} {}
-
         /// Constructs iterator from base iterator and get reference function
         iterator(base_iterator it, const GetRefFn & fn):
             it_{it}, fn_{fn} {}
